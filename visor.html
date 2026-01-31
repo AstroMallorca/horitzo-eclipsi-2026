@@ -180,6 +180,60 @@ async function getHCrit(lat, lon, azDeg){
   const v = rasters[0];
   return { h_crit: v, tileX, tileY, col, row, tif };
 }
+  async function buildHorizonProfileFromTiles(lat, lon, azMin, azMax, daz=0.1, opts={}){
+  const {
+    concurrency = 6,
+    onProgress = null,    // (done, total) => void
+    progressive = true,   // si true, actualitza CURRENT_PROFILE mentre carrega
+    throttleRenderEvery = 10
+  } = opts;
+
+  // discretitza rang
+  const n = Math.floor((azMax - azMin)/daz) + 1;
+  const az0 = azMin;
+  const alt = new Array(n).fill(null);
+
+  let done = 0;
+  let nextRenderAt = throttleRenderEvery;
+
+  // cua d'índexs
+  const idxs = Array.from({length:n}, (_,i)=>i);
+
+  async function worker(){
+    while(idxs.length){
+      const i = idxs.shift();
+      const az = az0 + i*daz;
+
+      try{
+        const r = await getHCrit(lat, lon, az);
+        alt[i] = r.h_crit;
+      }catch(e){
+        // si falta un azimut/fitxer, deixam null
+        alt[i] = null;
+      }
+
+      done++;
+      if(onProgress) onProgress(done, n);
+
+      // perfil progressiu (per veure com es “dibuixa”)
+      if(progressive && done >= nextRenderAt){
+        nextRenderAt += throttleRenderEvery;
+        CURRENT_PROFILE = { az0, daz, alt: alt.map(v => (v==null ? 0 : v)) };
+        render();
+      }
+    }
+  }
+
+  // arrenca workers
+  const k = Math.max(1, concurrency);
+  await Promise.all(Array.from({length:k}, ()=>worker()));
+
+  // al final, substitueix nulls per 0 (o per nodata si prefereixes)
+  const finalAlt = alt.map(v => (v==null ? 0 : v));
+
+  return { az0, daz, alt: finalAlt };
+}
+
   async function evaluateVisibility(lat, lon, azDeg, altSolDeg){
   const r = await getHCrit(lat, lon, azDeg);
 
@@ -819,7 +873,7 @@ PLOT = {
 
 
 drawGrid(W,H);
-// drawHorizon(W,H, CURRENT_PROFILE);
+drawHorizon(W,H, CURRENT_PROFILE);
 drawSunPath(W,H, sunPts, VIEW.colSunPath);
 drawSunDiscs(W, H, MARKS);
 
@@ -841,23 +895,39 @@ window.addEventListener("resize", render);
 
 (async ()=>{
   try{
-    const raw = await loadProfile();
-    CURRENT_PROFILE = normalizeProfile(raw) || profileFallback;
-  }catch(e){
-  //  console.warn("Perfil no carregat, usant fallback", e);
-    CURRENT_PROFILE = profileFallback;
-  }
+    hud.textContent = "Carregant horitzó real (tiles)…";
 
-  // 🔎 DEBUG AQUÍ
-  console.log(
-    "PROFILE",
-    CURRENT_PROFILE.az0,
-    CURRENT_PROFILE.daz,
-    CURRENT_PROFILE.alt.length
-  );
+    // rang que ja tens definit a VIEW (ja el recalcules amb C1/posta)
+    const azMin = VIEW.azMin;
+    const azMax = VIEW.azMax;
+
+    // IMPORTANT:
+    // - si tens tiles cada 0.1°, posa 0.1
+    // - si vols reduir càrrega, posa 0.2 (dibuxa igual de bé per pantalla)
+    const daz = 0.1;
+
+    CURRENT_PROFILE = await buildHorizonProfileFromTiles(
+      PARAMS.lat, PARAMS.lon,
+      azMin, azMax, daz,
+      {
+        concurrency: 6,
+        progressive: true,
+        throttleRenderEvery: 20,
+        onProgress: (done,total) => {
+          hud.textContent = `Carregant horitzó real… ${Math.round(done*100/total)}%`;
+        }
+      }
+    );
+
+  }catch(e){
+    console.warn("Error carregant horitzó real", e);
+    CURRENT_PROFILE = null;
+    hud.textContent = `Error horitzó real: ${e.message || e}`;
+  }
 
   render();
 })();
+
 
 </script>
 
