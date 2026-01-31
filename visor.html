@@ -71,7 +71,7 @@
 
   async function loadMeta() {
     if (META) return META;
-    const r = await fetch("data/meta.json", { cache: "no-store" });
+    const r = await fetch("./data/tiles/meta.json", { cache: "no-store" });
     if (!r.ok) throw new Error("No puc llegir data/meta.json");
     META = await r.json();
     return META;
