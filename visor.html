@@ -819,7 +819,7 @@ PLOT = {
 
 
 drawGrid(W,H);
-drawHorizon(W,H, CURRENT_PROFILE);
+// drawHorizon(W,H, CURRENT_PROFILE);
 drawSunPath(W,H, sunPts, VIEW.colSunPath);
 drawSunDiscs(W, H, MARKS);
 
@@ -844,7 +844,7 @@ window.addEventListener("resize", render);
     const raw = await loadProfile();
     CURRENT_PROFILE = normalizeProfile(raw) || profileFallback;
   }catch(e){
-    console.warn("Perfil no carregat, usant fallback", e);
+  //  console.warn("Perfil no carregat, usant fallback", e);
     CURRENT_PROFILE = profileFallback;
   }
 
