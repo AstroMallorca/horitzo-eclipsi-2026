@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="ca">
 <head>
-  <script src="https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.min.js"></script>
   <meta name="mobile-web-app-capable" content="yes">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -49,6 +48,7 @@
       text-overflow: ellipsis;
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.min.js"></script>
 </head>
 <body>
 <div id="wrap">
@@ -61,6 +61,53 @@
 
   <div class="hud" id="hud">Carregant…</div>
 </div>
+<script>
+  // Definició EPSG:25831 (ETRS89 / UTM zone 31N)
+  proj4.defs("EPSG:25831",
+    "+proj=utm +zone=31 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs"
+  );
+
+  let META = null;
+
+  async function loadMeta() {
+    if (META) return META;
+    const r = await fetch("data/meta.json", { cache: "no-store" });
+    if (!r.ok) throw new Error("No puc llegir data/meta.json");
+    META = await r.json();
+    return META;
+  }
+
+  // lat/lon (WGS84) -> (E,N) en metres (EPSG:25831)
+  function lonLatToEN(lon, lat) {
+    const [E, N] = proj4("EPSG:4326", "EPSG:25831", [lon, lat]);
+    return { E, N };
+  }
+
+  // (E,N) -> tileX,tileY
+  async function latLonToTile(lat, lon) {
+    const meta = await loadMeta();
+
+    const tileSize = meta.tile_size_m;             // 10000
+    const xmin = meta.tile_grid.origin_xmin;       // 330000
+    const ymax = meta.tile_grid.origin_ymax;       // 4470000
+    const nx = meta.tile_grid.nx;                  // 30
+    const ny = meta.tile_grid.ny;                  // 23
+
+    const { E, N } = lonLatToEN(lon, lat);
+
+    const tileX = Math.floor((E - xmin) / tileSize);
+    const tileY = Math.floor((ymax - N) / tileSize);
+
+    const inBounds = (tileX >= 0 && tileX < nx && tileY >= 0 && tileY < ny);
+
+    return { tileX, tileY, E, N, inBounds };
+  }
+
+  function pad3(n){ return String(n).padStart(3, "0"); }
+  function tileFilename(tileX, tileY){
+    return `t_x${pad3(tileX)}_y${pad3(tileY)}.tif`;
+  }
+</script>
 
 <script src="js/astronomy.browser.min.js"></script>
 <script>
