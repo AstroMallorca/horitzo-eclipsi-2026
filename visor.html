@@ -898,8 +898,17 @@ window.addEventListener("resize", render);
     hud.textContent = "Carregant horitzó real (tiles)…";
 
     // rang que ja tens definit a VIEW (ja el recalcules amb C1/posta)
-    const azMin = VIEW.azMin;
-    const azMax = VIEW.azMax;
+    // 🔒 Rang REAL disponible de tiles (ajusta si cal)
+const TILE_AZ_MIN = 286.7;
+const TILE_AZ_MAX = 288.0;
+
+// Centram el perfil al voltant de l'azimut del Sol
+const margin = 0.5; // graus a cada costat (pots posar 0.3, 0.5, 1.0…)
+
+const azCenter = sunAtCenter.az;
+
+const azMin = Math.max(TILE_AZ_MIN, azCenter - margin);
+const azMax = Math.min(TILE_AZ_MAX, azCenter + margin);
 
     // IMPORTANT:
     // - si tens tiles cada 0.1°, posa 0.1
