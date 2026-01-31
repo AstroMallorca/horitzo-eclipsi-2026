@@ -107,6 +107,13 @@
   function tileFilename(tileX, tileY){
     return `t_x${pad3(tileX)}_y${pad3(tileY)}.tif`;
   }
+    function azToBucket(azDeg){
+    let a = azDeg % 360;
+    if (a < 0) a += 360;
+
+    const a01 = Math.round(a * 10) / 10;
+    return "az" + String(a01).replace(".", "_");
+  }
 </script>
 
 <script src="js/astronomy.browser.min.js"></script>
