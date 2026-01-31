@@ -180,6 +180,20 @@ async function getHCrit(lat, lon, azDeg){
   const v = rasters[0];
   return { h_crit: v, tileX, tileY, col, row, tif };
 }
+  async function evaluateVisibility(lat, lon, azDeg, altSolDeg){
+  const r = await getHCrit(lat, lon, azDeg);
+
+  // nodata
+  if (r.h_crit === -9999 || !Number.isFinite(r.h_crit)) {
+    return { ...r, altSol: altSolDeg, visible: null, delta: null };
+  }
+
+  const delta = altSolDeg - r.h_crit;
+  const visible = delta > 0;
+
+  return { ...r, altSol: altSolDeg, visible, delta };
+}
+
 </script>
 
 <script src="js/astronomy.browser.min.js"></script>
