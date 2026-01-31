@@ -882,51 +882,15 @@ function render(){
   
 // Guardam l'antic (per restaurar al final)
 const oldMin = VIEW.azMin, oldMax = VIEW.azMax;
-
-// === 1) Definim finestra d'azimut "intel·ligent" per omplir el mòbil ===
+// === 1) FINESTRA FIXA: C1 → Posta (mar) ===
 const availW = W - VIEW.padding.l - VIEW.padding.r;
 const availH = H - VIEW.padding.t - VIEW.padding.b;
 
 const altSpan = (VIEW.altMax - VIEW.altMin);
 
-// Anchor esquerra: C1 ha d'estar com a màxim a +2°
-const c1 = (C1_AZ != null) ? C1_AZ : (BASE_AZ ? BASE_AZ.min : VIEW.azMin);
-let azMin = c1 - 2;
-
-// Quants graus "caben" si prioritzam aprofitar l'altura (1:1):
-// pxPerDegY = availH / altSpan  => spanX = availW / pxPerDegY
-let span = (availW * altSpan) / Math.max(1, availH);
-
-// seguretat: no volem finestres ridícules
-span = Math.max(span, 10);
-
-// asseguram que entra el màxim i (si existeix) la posta
-if (PEAK_AZ != null) span = Math.max(span, (PEAK_AZ + 2) - azMin);
-if (SET_AZ  != null) span = Math.max(span, (SET_AZ  + 1) - azMin);
-
-let azMax = azMin + span;
-
-// clamp al rang real del perfil, si el tenim
-if (CURRENT_PROFILE) {
-  const profMin = CURRENT_PROFILE.az0;
-  const profMax = CURRENT_PROFILE.az0 + (CURRENT_PROFILE.alt.length - 1) * CURRENT_PROFILE.daz;
-
-  // clamp mantenint azMin ancorat tant com es pugui
-  if (azMin < profMin) {
-    const shift = profMin - azMin;
-    azMin += shift;
-    azMax += shift;
-  }
-  if (azMax > profMax) {
-    azMax = profMax;
-    // si el clamp ens “menja” massa, ajustam azMin però intentant mantenir C1 prop de l'esquerra
-    azMin = Math.max(profMin, azMax - span);
-  }
-}
-
-// Apliquem la finestra d'aquest render
-VIEW.azMin = azMin;
-VIEW.azMax = azMax;
+// agafa sempre el rang “gran” calculat (C1 - 1 fins posta + 1)
+VIEW.azMin = BASE_AZ.min;
+VIEW.azMax = BASE_AZ.max;
 
 // === 2) Rectangle de dibuix amb escala 1:1 (1°X = 1°Y) ===
 const azSpan = (VIEW.azMax - VIEW.azMin);
@@ -1011,7 +975,9 @@ const azMax = Math.min(TILE_AZ_MAX, azCenter + margin);
     CURRENT_PROFILE = null;
     hud.textContent = `Error horitzó real: ${e.message || e}`;
   }
-CURRENT_PROFILE.alt = fillGapsLinear(CURRENT_PROFILE.alt);
+if (CURRENT_PROFILE && Array.isArray(CURRENT_PROFILE.alt)) {
+  CURRENT_PROFILE.alt = fillGapsLinear(CURRENT_PROFILE.alt);
+}
 
   render();
 })();
