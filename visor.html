@@ -373,6 +373,18 @@ function mapY(alt){
 
 function inViewAz(az){ return az >= VIEW.azMin && az <= VIEW.azMax; }
 function inViewAlt(alt){ return alt >= VIEW.altMin && alt <= VIEW.altMax; }
+function drawSeaLevel(){
+  if(!PLOT) return;
+  const y = mapY(0);
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,255,255,0.35)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(PLOT.x0, y);
+  ctx.lineTo(PLOT.x1, y);
+  ctx.stroke();
+  ctx.restore();
+}
 
 function drawGrid(W,H){
   ctx.save();
@@ -630,6 +642,30 @@ function sunHorAtAstroTime(x, obs){
 
   return { az, alt: hor.altitude, time: t };
 }
+function buildSunPathBetweenTimes(obs, tStart, tEnd, stepSec=60){
+  const pts = [];
+  if(!tStart || !tEnd) return pts;
+
+  const d0 = astroTimeToDate(toAstroTime(tStart));
+  const d1 = astroTimeToDate(toAstroTime(tEnd));
+  if(!d0 || !d1) return pts;
+
+  const startMs = d0.getTime();
+  const endMs   = d1.getTime();
+
+  for(let tMs = startMs; tMs <= endMs; tMs += stepSec*1000){
+    const time = Astronomy.MakeTime(new Date(tMs));
+    const eq = Astronomy.Equator("Sun", time, obs, true, true);
+    const hor = Astronomy.Horizon(time, obs, eq.ra, eq.dec, "normal");
+
+    let az = hor.azimuth;
+    if(az < 0) az += 360;
+    if(az >= 360) az -= 360;
+
+    pts.push({ az, alt: hor.altitude, time });
+  }
+  return pts;
+}
 
 
 // construeix punts reals del Sol
@@ -651,7 +687,22 @@ const sunSetTime = Astronomy.SearchAltitude("Sun", OBS, -1, dayMidUTC, 1, -0.833
 
 
 // 3) Punts del camí del Sol (com ja feies)
-let sunPts = buildRealSunPath(PARAMS.lat, PARAMS.lon, PARAMS.alt, ymd, hhmm, 120, 120, 60);
+// --- Camí del Sol: des de C1 fins a la posta (horitzó marí) ---
+const tC1 = (ECL && ECL.partial_begin && ECL.partial_begin.time) ? ECL.partial_begin.time : null;
+const tSet = (sunSetTime && sunSetTime.time) ? sunSetTime.time : null;
+
+// fallback si per qualque motiu no hi ha C1/posta
+const tStart = tC1 || Astronomy.MakeTime(makeUtcDate(ymd, hhmm));
+const tEnd   = tSet || Astronomy.MakeTime(makeUtcDate(ymd, {hh:23, mm:59}));
+
+let sunPts = buildSunPathBetweenTimes(OBS, tStart, tEnd, 60);
+
+// rang d'altitud: de 0° fins el màxim del tram + una mica
+let maxAltSeg = 0;
+for (const p of sunPts) if (Number.isFinite(p.alt)) maxAltSeg = Math.max(maxAltSeg, p.alt);
+
+VIEW.altMin = 0;
+VIEW.altMax = Math.max(5, Math.ceil(maxAltSeg + 1));
 
 // ✅ RANG ALTITUD: de 0° fins C1 + 1°
 const c1Pt = (ECL && ECL.partial_begin && ECL.partial_begin.time)
@@ -899,6 +950,7 @@ PLOT = {
 
 
 drawGrid(W,H);
+drawSeaLevel();
 drawHorizon(W,H, CURRENT_PROFILE);
 drawSunPath(W,H, sunPts, VIEW.colSunPath);
 drawSunDiscs(W, H, MARKS);
