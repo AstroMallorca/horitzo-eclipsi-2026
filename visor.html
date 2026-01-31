@@ -114,6 +114,13 @@
     const a01 = Math.round(a * 10) / 10;
     return "az" + String(a01).replace(".", "_");
   }
+  async function resolveTifPath(lat, lon, azDeg){
+  const { tileX, tileY } = await latLonToTile(lat, lon);
+  const azKey = azToBucket(azDeg);
+
+  const tif = `./data/tiles/out/${azKey}/${tileFilename(tileX, tileY)}`;
+  return { azKey, tileX, tileY, tif };
+}
 </script>
 
 <script src="js/astronomy.browser.min.js"></script>
