@@ -933,11 +933,6 @@ drawHorizon(W,H, CURRENT_PROFILE);
 drawSunPath(W,H, sunPts, VIEW.colSunPath);
 drawSunDiscs(W, H, MARKS);
 
-// restaura valors originals
-VIEW.azMin = oldMin; 
-VIEW.azMax = oldMax;
-  
-
   if(sunAtCenter){
     // Actualitza HUD des dels tiles (async, sense bloquejar render)
     updateHudFromTiles();
