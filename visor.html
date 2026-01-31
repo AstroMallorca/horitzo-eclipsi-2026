@@ -119,7 +119,7 @@
   const { tileX, tileY } = await latLonToTile(lat, lon);
   const azKey = azToBucket(azDeg);
 
-  const tif = `./data/tiles/out/${azKey}/${tileFilename(tileX, tileY)}`;
+  const tif = `./data/tiles/out_deflate/${azKey}/${tileFilename(tileX, tileY)}`;
   return { azKey, tileX, tileY, tif };
 }
   // Cache de TIFFs per no rebaixar-los cada vegada
