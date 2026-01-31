@@ -218,7 +218,7 @@ async function getHCrit(lat, lon, azDeg){
       // perfil progressiu (per veure com es “dibuixa”)
       if(progressive && done >= nextRenderAt){
         nextRenderAt += throttleRenderEvery;
-        CURRENT_PROFILE = { az0, daz, alt: alt.map(v => (v==null ? 0 : v)) };
+       CURRENT_PROFILE = { az0, daz, alt: alt.map(v => (v==null ? NaN : v)) };
         render();
       }
     }
@@ -229,7 +229,7 @@ async function getHCrit(lat, lon, azDeg){
   await Promise.all(Array.from({length:k}, ()=>worker()));
 
   // al final, substitueix nulls per 0 (o per nodata si prefereixes)
-  const finalAlt = alt.map(v => (v==null ? 0 : v));
+  const finalAlt = alt.map(v => (v==null ? NaN : v));
 
   return { az0, daz, alt: finalAlt };
 }
@@ -403,6 +403,8 @@ function drawHorizon(W,H, profile){
     const az = az0 + i*daz;
     if(!inViewAz(az)) continue;
     const a = alt[i];
+if(!Number.isFinite(a)) { started = false; continue; }
+    
  const x = mapX(az);
 const y = mapY(a);
     if(!started){ ctx.moveTo(x,y); started=true; }
