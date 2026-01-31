@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="ca">
 <head>
+  <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
   <meta name="mobile-web-app-capable" content="yes">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -120,6 +121,64 @@
 
   const tif = `./data/tiles/out/${azKey}/${tileFilename(tileX, tileY)}`;
   return { azKey, tileX, tileY, tif };
+}
+  // Cache de TIFFs per no rebaixar-los cada vegada
+const __tiffCache = new Map();
+
+async function loadTiff(url){
+  if (__tiffCache.has(url)) return __tiffCache.get(url);
+
+  const ab = await fetch(url).then(r => r.arrayBuffer());
+  const tiff = await GeoTIFF.fromArrayBuffer(ab);
+  const img = await tiff.getImage(); // 1 banda Float32
+  const obj = { tiff, img };
+
+  __tiffCache.set(url, obj);
+  return obj;
+}
+
+// Calcula el píxel (col,row) dins el tile 10km segons meta + tileX,tileY
+function enToPixelInTile(E, N, meta, tileX, tileY){
+  const tileSize = meta.tile_size_m;        // 10000
+  const res = meta.grid_res_m;              // 100
+  const pxN = meta.tile_px;                 // 100
+
+  const xmin0 = meta.tile_grid.origin_xmin; // origen mosaic
+  const ymax0 = meta.tile_grid.origin_ymax;
+
+  // Extensió del tile en metres
+  const tileXmin = xmin0 + tileX * tileSize;
+  const tileYmax = ymax0 - tileY * tileSize;  // perquè tileY creix cap avall
+
+  const col = Math.floor((E - tileXmin) / res);
+  const row = Math.floor((tileYmax - N) / res);
+
+  const inTile = (col >= 0 && col < pxN && row >= 0 && row < pxN);
+  return { col, row, inTile };
+}
+
+// Llegeix el valor h_crit per lat/lon/az
+async function getHCrit(lat, lon, azDeg){
+  const meta = await loadMeta(); // assegura que ja usa ./data/tiles/meta.json
+  const { E, N } = lonLatToEN(lon, lat);
+
+  const { tileX, tileY, tif } = await resolveTifPath(lat, lon, azDeg);
+  const { col, row, inTile } = enToPixelInTile(E, N, meta, tileX, tileY);
+
+  if (!inTile) throw new Error(`Punt fora del tile: col=${col}, row=${row}`);
+
+  const { img } = await loadTiff(tif);
+
+  // Llegeix una finestreta 1x1 (mínim) i agafa el valor [0]
+  const rasters = await img.readRasters({
+    window: [col, row, col + 1, row + 1],
+    width: 1,
+    height: 1,
+    interleave: true
+  });
+
+  const v = rasters[0];
+  return { h_crit: v, tileX, tileY, col, row, tif };
 }
 </script>
 
