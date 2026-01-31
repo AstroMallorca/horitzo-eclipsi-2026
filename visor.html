@@ -696,6 +696,12 @@ const tStart = tC1 || Astronomy.MakeTime(makeUtcDate(ymd, hhmm));
 const tEnd   = tSet || Astronomy.MakeTime(makeUtcDate(ymd, {hh:23, mm:59}));
 
 let sunPts = buildSunPathBetweenTimes(OBS, tStart, tEnd, 60);
+  // ✅ Fallback si per qualque motiu no hem pogut construir el tram C1→posta
+if (!Array.isArray(sunPts) || sunPts.length < 2) {
+  console.warn("sunPts buit; faig fallback ±4h al voltant del centerUtc");
+  sunPts = buildRealSunPath(PARAMS.lat, PARAMS.lon, PARAMS.alt, ymd, hhmm, 240, 240, 60);
+}
+
 
 // rang d'altitud: de 0° fins el màxim del tram + una mica
 let maxAltSeg = 0;
@@ -796,15 +802,25 @@ C1_AZ   = (c1Pt   && Number.isFinite(c1Pt.az))   ? c1Pt.az   : null;
 PEAK_AZ = (peakPt && Number.isFinite(peakPt.az)) ? peakPt.az : null;
 SET_AZ  = (sunSetPt && Number.isFinite(sunSetPt.az)) ? sunSetPt.az : null;
 
-const refStartAz = (c1Pt && Number.isFinite(c1Pt.az)) ? c1Pt.az : sunPts[0].az;
-const refEndAz   = (sunSetPt && Number.isFinite(sunSetPt.az)) ? sunSetPt.az : sunPts[sunPts.length-1].az;
+// ✅ BASE_AZ a partir del camí del Sol real (evita NaN)
+let minAz = +Infinity, maxAz = -Infinity;
+for (const p of sunPts) {
+  if (!p || !Number.isFinite(p.az)) continue;
+  minAz = Math.min(minAz, p.az);
+  maxAz = Math.max(maxAz, p.az);
+}
 
-VIEW.azMin = Math.floor(refStartAz - 1);
-VIEW.azMax = Math.ceil(refEndAz + 1);
+// si per qualsevol cosa encara és infinit, fallback a un rang raonable
+if (!Number.isFinite(minAz) || !Number.isFinite(maxAz)) {
+  minAz = 220;
+  maxAz = 300;
+}
 
+VIEW.azMin = Math.floor(minAz - 1);
+VIEW.azMax = Math.ceil(maxAz + 1);
 
-// ✅ camp base (mínim) que NO volem reduir mai
 BASE_AZ = { min: VIEW.azMin, max: VIEW.azMax };
+
 
 // seguretat: evita un camp massa estret
 if (VIEW.azMax - VIEW.azMin < 10) {
@@ -880,8 +896,6 @@ function render(){
   ctx.fillStyle = "#111";
   ctx.fillRect(0,0,W,H);
   
-// Guardam l'antic (per restaurar al final)
-const oldMin = VIEW.azMin, oldMax = VIEW.azMax;
 // === 1) FINESTRA FIXA: C1 → Posta (mar) ===
 const availW = W - VIEW.padding.l - VIEW.padding.r;
 const availH = H - VIEW.padding.t - VIEW.padding.b;
@@ -912,7 +926,7 @@ PLOT = {
   y0: VIEW.padding.t + extraY + realPlotH
 };
 
-
+console.log("VIEW az", VIEW.azMin, VIEW.azMax, "alt", VIEW.altMin, VIEW.altMax, "sunPts", sunPts.length);
 drawGrid(W,H);
 drawSeaLevel();
 drawHorizon(W,H, CURRENT_PROFILE);
