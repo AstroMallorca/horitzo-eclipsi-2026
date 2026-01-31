@@ -180,6 +180,30 @@ async function getHCrit(lat, lon, azDeg){
   const v = rasters[0];
   return { h_crit: v, tileX, tileY, col, row, tif };
 }
+  function fillGapsLinear(arr){
+  const a = arr.slice(); // còpia
+
+  for(let i=0; i<a.length; i++){
+    if(Number.isFinite(a[i])) continue;
+
+    // cerca veí de l'esquerra
+    let L = i - 1;
+    while(L >= 0 && !Number.isFinite(a[L])) L--;
+
+    // cerca veí de la dreta
+    let R = i + 1;
+    while(R < a.length && !Number.isFinite(a[R])) R++;
+
+    // si tenim els dos costats, interpolam
+    if(L >= 0 && R < a.length){
+      const t = (i - L) / (R - L);
+      a[i] = a[L] * (1 - t) + a[R] * t;
+    }
+    // si només hi ha un costat, ho deixam NaN (no inventam)
+  }
+
+  return a;
+}
   async function buildHorizonProfileFromTiles(lat, lon, azMin, azMax, daz=0.1, opts={}){
   const {
     concurrency = 6,
@@ -929,12 +953,13 @@ const azMax = Math.min(TILE_AZ_MAX, azCenter + margin);
         }
       }
     );
-
+    
   }catch(e){
     console.warn("Error carregant horitzó real", e);
     CURRENT_PROFILE = null;
     hud.textContent = `Error horitzó real: ${e.message || e}`;
   }
+CURRENT_PROFILE.alt = fillGapsLinear(CURRENT_PROFILE.alt);
 
   render();
 })();
