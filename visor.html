@@ -73,7 +73,7 @@
   async function loadMeta() {
     if (META) return META;
     const r = await fetch("./data/tiles/meta.json", { cache: "no-store" });
-    if (!r.ok) throw new Error("No puc llegir data/meta.json");
+    if (!r.ok) throw new Error("No puc llegir ./data/tiles/meta.json");
     META = await r.json();
     return META;
   }
@@ -681,6 +681,61 @@ if (VIEW.azMax - VIEW.azMin < 10) {
   VIEW.azMin = Math.floor(mid - 5);
   VIEW.azMax = Math.ceil(mid + 5);
 }
+let __hudReqId = 0;
+
+async function updateHudFromTiles(){
+  if(!sunAtCenter) return;
+
+  const reqId = ++__hudReqId;
+
+  try{
+    const az = sunAtCenter.az;
+    const alt = sunAtCenter.alt;
+
+    const v = await evaluateVisibility(PARAMS.lat, PARAMS.lon, az, alt);
+
+    // si ha entrat una crida nova, ignoram aquesta
+    if(reqId !== __hudReqId) return;
+
+    const SUN_R_DEG = 0.266;
+
+    let status = "—";
+    let hzTxt = "—";
+    let dTxt  = "—";
+
+    if (v.visible === null) {
+      status = "NoData";
+    } else {
+      const delta = v.delta;
+      const hHor = v.h_crit;
+
+      hzTxt = hHor.toFixed(2);
+      dTxt  = delta.toFixed(2);
+
+      if (delta >= SUN_R_DEG) {
+        status = "✅ Visible (100%)";
+      } else if (delta <= -SUN_R_DEG) {
+        status = "❌ Tapat (0%)";
+      } else {
+        // parcial: fracció visible del disc (segment circular)
+        const d = delta;
+        const R = SUN_R_DEG;
+        const A = R*R * Math.acos(-d/R) + d * Math.sqrt(Math.max(0, R*R - d*d));
+        const frac = A / (Math.PI * R*R);
+        const pct = Math.round(frac * 100);
+        status = `⚠️ Parcial (${pct}%)`;
+      }
+    }
+
+    hud.textContent =
+      `Az ${az.toFixed(1)}° · Sol ${alt.toFixed(2)}° · Horitzó ${hzTxt}° · Δ ${dTxt}° · ${status}`;
+
+  }catch(e){
+    // si falla el tile, no rompem el visor
+    if(reqId !== __hudReqId) return;
+    hud.textContent = `Error tiles: ${e.message || e}`;
+  }
+}
 
 /* ============
    RENDER
@@ -773,40 +828,13 @@ VIEW.azMin = oldMin;
 VIEW.azMax = oldMax;
   
 
-  if(CURRENT_PROFILE && sunAtCenter){
-   const hHor = horizonAtAz(CURRENT_PROFILE, sunAtCenter.az);
-const SUN_R_DEG = 0.266;
-
-const delta = (hHor==null) ? null : (sunAtCenter.alt - hHor);
-
-let status = "—";
-let frac = null;
-
-if (delta != null) {
-  if (delta >= SUN_R_DEG) {
-    status = "✅ Visible (100%)";
-    frac = 1;
-  } else if (delta <= -SUN_R_DEG) {
-    status = "❌ Tapat (0%)";
-    frac = 0;
+  if(sunAtCenter){
+    // Actualitza HUD des dels tiles (async, sense bloquejar render)
+    updateHudFromTiles();
   } else {
-    // parcial: fracció visible del disc (aprox per segment circular)
-    const d = delta;      // graus: centre respecte a la “línia” d’horitzó
-    const R = SUN_R_DEG;
-
-    // Àrea visible (disc tallat per una recta): A = R^2*acos(-d/R) + d*sqrt(R^2-d^2)
-    const A = R*R * Math.acos(-d/R) + d * Math.sqrt(R*R - d*d);
-    frac = A / (Math.PI * R*R);
-
-    const pct = Math.round(frac * 100);
-    status = `⚠️ Parcial (${pct}%)`;
+    hud.textContent = "Carregant…";
   }
-}
-    hud.textContent =
-      `Az ${sunAtCenter.az.toFixed(1)}° · Sol ${sunAtCenter.alt.toFixed(2)}° · Horitzó ${hHor?.toFixed(2)}° · Δ ${delta?.toFixed(2)}° · ${status}`;
-  }else{
-    hud.textContent = "Carregant perfil d'horitzó…";
-  }
+
 }
 
 window.addEventListener("resize", render);
