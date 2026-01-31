@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="ca">
+<head>
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Visor Horitzó</title>
+
+  <meta name="theme-color" content="#000000">
+
+  <style>
+    body{ margin:0; background:#000; color:#fff; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;}
+    #wrap{ position:relative; height:100vh; width:100vw; overflow:hidden; }
+    canvas{ width:100%; height:100%; display:block; }
+
+    .hud{
+      position:absolute; left:12px; bottom:12px;
+      background:rgba(0,0,0,.45); padding:10px 12px; border-radius:10px;
+      backdrop-filter: blur(6px);
+      font-size:14px; line-height:1.25;
+      max-width: calc(100vw - 24px);
+      box-sizing: border-box;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .topbar{
+      position:absolute; left:12px; top:12px;
+      display:flex; gap:10px; align-items:center;
+      background:rgba(0,0,0,.35);
+      border:1px solid rgba(255,255,255,.12);
+      padding:8px 10px; border-radius:12px;
+      backdrop-filter: blur(6px);
+    }
+    .btn{
+      appearance:none; border:1px solid rgba(255,255,255,.18);
+      background:transparent; color:#fff;
+      padding:8px 10px; border-radius:10px;
+      font-size:14px; cursor:pointer;
+    }
+    .meta{
+      color:rgba(255,255,255,.75);
+      font-size:13px;
+      max-width: 70vw;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  </style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+
+  <div class="topbar">
+    <button class="btn" id="backBtn">← Tornar</button>
+    <div class="meta" id="meta">—</div>
+  </div>
+
+  <div class="hud" id="hud">Carregant…</div>
+</div>
+
+<script src="js/astronomy.browser.min.js"></script>
+<script>
+/* ============
+   PARÀMETRES
+   ============ */
+function getParam(name, fallback=null){
+  const p = new URLSearchParams(location.search);
+  const v = p.get(name);
+  return (v == null || v === "") ? fallback : v;
+}
+function numParam(name, fallback=null){
+  const v = getParam(name, null);
+  if(v == null) return fallback;
+  const x = parseFloat(String(v).replace(",", "."));
+  return Number.isFinite(x) ? x : fallback;
+}
+
+const PARAMS = {
+  lat: numParam("lat", null),
+  lon: numParam("lon", null),
+  alt: numParam("alt", 0),
+  rangeKm: numParam("rangeKm", 200),
+  date: getParam("date", "2026-08-12"),
+  centerUtc: getParam("centerUtc", "18:30")
+};
+
+// si s'obre directament sense coords, demo
+if(PARAMS.lat == null || PARAMS.lon == null){
+  PARAMS.lat = 39.5733;
+  PARAMS.lon = 2.6564;
+  PARAMS.alt = 0;
+}
+
+document.getElementById("meta").textContent =
+  `lat ${PARAMS.lat.toFixed(4)}, lon ${PARAMS.lon.toFixed(4)}, alt ${Math.round(PARAMS.alt)} m · ${PARAMS.date} ${PARAMS.centerUtc} UTC · rang ${Math.round(PARAMS.rangeKm)} km`;
+
+document.getElementById("backBtn").addEventListener("click", () => {
+  location.href = "index.html";
+});
+
+/* ============
+   CONFIG VIEW
+   ============ */
+const VIEW = {
+  azMin: 220,
+  azMax: 300,
+  altMin: 0,
+  altMax: 25,
+  padding: {l: 40, r: 14, t: 14, b: 34},
+  gridAzStep: 10,
+  gridAltStep: 5,
+
+  colGrid: "rgba(255,0,180,0.35)",
+  colGridBold: "rgba(255,0,180,0.55)",
+  colHorizon: "rgba(255,255,255,0.9)",
+  colSunPath: "rgba(255,200,0,0.95)",
+  colText: "rgba(255,0,180,0.9)"
+};
+
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const hud = document.getElementById("hud");
+// ✅ globals (UNA sola vegada)
+let CURRENT_PROFILE = null;
+let BASE_AZ = null;
+  let PLOT = null;   // ✅ rectangle real de dibuix amb escala 1:1
+  let C1_AZ = null;
+let PEAK_AZ = null;
+let SET_AZ = null;
+
+
+
+/* ============
+   HELPERS
+   ============ */
+function resizeCanvas(){
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const w = Math.floor(canvas.clientWidth * dpr);
+  const h = Math.floor(canvas.clientHeight * dpr);
+  if(canvas.width !== w || canvas.height !== h){
+    canvas.width = w; canvas.height = h;
+  }
+  return {w,h};
+}
+function mapX(az){
+  const x0 = PLOT.x0;
+  const x1 = PLOT.x1;
+  const t = (az - VIEW.azMin) / (VIEW.azMax - VIEW.azMin);
+  return x0 + t * (x1 - x0);
+}
+function mapY(alt){
+  const y0 = PLOT.y0; // bottom
+  const y1 = PLOT.y1; // top
+  const tt = (alt - VIEW.altMin) / (VIEW.altMax - VIEW.altMin);
+  return y0 - tt * (y0 - y1);
+}
+
+function inViewAz(az){ return az >= VIEW.azMin && az <= VIEW.azMax; }
+function inViewAlt(alt){ return alt >= VIEW.altMin && alt <= VIEW.altMax; }
+
+function drawGrid(W,H){
+  ctx.save();
+  ctx.lineWidth = 1;
+
+  for(let az = Math.ceil(VIEW.azMin/VIEW.gridAzStep)*VIEW.gridAzStep; az <= VIEW.azMax; az += VIEW.gridAzStep){
+    const x = mapX(az);
+    const bold = (az % 20 === 0);
+    ctx.strokeStyle = bold ? VIEW.colGridBold : VIEW.colGrid;
+    ctx.beginPath();
+   ctx.moveTo(x, PLOT.y1);
+ctx.lineTo(x, PLOT.y0);
+    ctx.stroke();
+
+    ctx.fillStyle = VIEW.colText;
+    ctx.font = "14px system-ui";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(`${az.toFixed(0)}°`, x, H - 6);
+  }
+
+  for(let alt = Math.ceil(VIEW.altMin/VIEW.gridAltStep)*VIEW.gridAltStep; alt <= VIEW.altMax; alt += VIEW.gridAltStep){
+    const y = mapY(alt);
+    const bold = (alt % 10 === 0);
+    ctx.strokeStyle = bold ? VIEW.colGridBold : VIEW.colGrid;
+    ctx.beginPath();
+ ctx.moveTo(PLOT.x0, y);
+ctx.lineTo(PLOT.x1, y);
+    ctx.stroke();
+
+    ctx.fillStyle = VIEW.colText;
+    ctx.font = "14px system-ui";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`${alt.toFixed(0)}°`, 6, y);
+  }
+
+  ctx.restore();
+}
+
+function drawHorizon(W,H, profile){
+  if(!profile) return;
+  const {az0, daz, alt} = profile;
+
+  ctx.save();
+  ctx.strokeStyle = VIEW.colHorizon;
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+
+  let started = false;
+  for(let i=0; i<alt.length; i++){
+    const az = az0 + i*daz;
+    if(!inViewAz(az)) continue;
+    const a = alt[i];
+ const x = mapX(az);
+const y = mapY(a);
+    if(!started){ ctx.moveTo(x,y); started=true; }
+    else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawSunPath(W, H, points, color){
+  if(!points || !points.length) return;
+
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.0;
+  ctx.beginPath();
+
+  let started = false;
+  let prev = null;
+
+  for(const p of points){
+    const ok = inViewAz(p.az) && inViewAlt(p.alt);
+    if(!ok){ prev = null; continue; }
+    if(prev && Math.abs(p.az - prev.az) > 5) prev = null;
+
+   const x = mapX(p.az);
+const y = mapY(p.alt);
+
+    if(!started || !prev){
+      ctx.moveTo(x, y);
+      started = true;
+    }else{
+      ctx.lineTo(x, y);
+    }
+    prev = p;
+  }
+
+  ctx.stroke();
+  ctx.restore();
+}
+function drawSunDiscs(W, H, marks){
+  if(!marks || !marks.length) return;
+  if(!PLOT) return; // encara no s'ha calculat el rectangle de dibuix
+
+  // radi solar aproximat en graus
+  const sunRadiusDeg = 0.266; // ~16 arcmin
+
+  // ✅ píxels per grau (ha de ser 1:1). Ho traiem del PLOT real.
+  const pxPerDegY = (PLOT.y0 - PLOT.y1) / (VIEW.altMax - VIEW.altMin);
+  // (equivalent en X: (PLOT.x1-PLOT.x0)/(VIEW.azMax-VIEW.azMin))
+
+  // ✅ radi del Sol en píxels amb la mateixa escala que horitzó/camí
+  const rPx = sunRadiusDeg * pxPerDegY;
+
+  ctx.save();
+  ctx.lineWidth = 2;
+  ctx.font = "15px system-ui";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+
+  for(const m of marks){
+    if(!inViewAz(m.az) || !inViewAlt(m.alt)) continue;
+
+    const x = mapX(m.az);
+    const y = mapY(m.alt);
+
+    ctx.strokeStyle = m.color || "rgba(255,255,255,0.9)";
+    ctx.fillStyle = ctx.strokeStyle;
+
+    // disc a escala real
+    ctx.beginPath();
+    ctx.arc(x, y, Math.max(2, rPx), 0, Math.PI*2);
+    ctx.stroke();
+
+    // punt central (això el deixo fix perquè sigui visible sempre)
+    ctx.beginPath();
+    ctx.arc(x, y, 2.5, 0, Math.PI*2);
+    ctx.fill();
+
+    if(m.label){
+      ctx.fillText(m.label, x + 10, y);
+    }
+  }
+
+  ctx.restore();
+}
+
+function horizonAtAz(profile, az){
+  const i = (az - profile.az0) / profile.daz;
+  const i0 = Math.floor(i);
+  const t = i - i0;
+  if(i0 < 0 || i0+1 >= profile.alt.length) return null;
+  return profile.alt[i0]*(1-t) + profile.alt[i0+1]*t;
+}
+
+function autoAltRange(points){
+  let maxAlt = 0;
+  for(const p of points) maxAlt = Math.max(maxAlt, p.alt);
+  VIEW.altMin = -1;
+  VIEW.altMax = Math.max(10, Math.ceil(maxAlt + 3));
+}
+
+/* ============
+   SOL REAL (Astronomy Engine)
+   ============ */
+function parseDateYMD(s){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ""));
+  if(!m) return null;
+  return {y:+m[1], mo:+m[2], d:+m[3]};
+}
+function parseHHMM(s){
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || ""));
+  if(!m) return null;
+  const hh = +m[1], mm = +m[2];
+  if(hh<0 || hh>23 || mm<0 || mm>59) return null;
+  return {hh, mm};
+}
+function makeUtcDate(ymd, hhmm){
+  return new Date(Date.UTC(ymd.y, ymd.mo - 1, ymd.d, hhmm.hh, hhmm.mm, 0));
+}
+  
+// ✅ AFEGEIX AQUI
+function astroTimeToDate(t){
+  // moltes builds tenen t.date; altres tenen t.toDate()
+  if(!t) return null;
+  if(t instanceof Date) return t;
+  if(t.date instanceof Date) return t.date;
+  if(typeof t.toDate === "function") return t.toDate();
+  return null;
+}
+function toAstroTime(x){
+  if(!x) return null;
+
+  // wrapper típic d'events: { time: AstroTime }
+  if (x.time && typeof x.time.ut === "number") return x.time;
+
+  // ja és AstroTime
+  if (typeof x.ut === "number") return x;
+
+  // Date
+  if (x instanceof Date) return Astronomy.MakeTime(x);
+
+  // wrapper amb .date (Date)
+  if (x.date instanceof Date) return Astronomy.MakeTime(x.date);
+
+  return null;
+}
+
+
+function buildRealSunPath(observerLat, observerLon, observerAltM, dateYMD, centerHHMM, minutesBefore=120, minutesAfter=120, stepSec=60){
+  const obs = new Astronomy.Observer(observerLat, observerLon, observerAltM);
+
+  const centerDate = makeUtcDate(dateYMD, centerHHMM);
+  const startMs = centerDate.getTime() - minutesBefore*60*1000;
+  const endMs   = centerDate.getTime() + minutesAfter*60*1000;
+
+  const pts = [];
+
+  for(let tMs = startMs; tMs <= endMs; tMs += stepSec*1000){
+    const time = Astronomy.MakeTime(new Date(tMs));
+
+    const eq = Astronomy.Equator("Sun", time, obs, true, true);
+    const hor = Astronomy.Horizon(time, obs, eq.ra, eq.dec, "normal");
+
+    let az = hor.azimuth;
+    if(az < 0) az += 360;
+    if(az >= 360) az -= 360;
+
+    pts.push({ az, alt: hor.altitude });
+  }
+  return pts;
+}
+function fmtHHMM(x){
+  const t = toAstroTime(x);
+  const d = astroTimeToDate(t);
+  return d ? d.toISOString().slice(11,16) : "—";
+}
+
+function sunHorAtDateUTC(dateObj, obs){
+  const time = Astronomy.MakeTime(dateObj);
+  const eq = Astronomy.Equator("Sun", time, obs, true, true);
+  const hor = Astronomy.Horizon(time, obs, eq.ra, eq.dec, "normal"); // refracció "normal"
+  let az = hor.azimuth;
+  if(az < 0) az += 360;
+  if(az >= 360) az -= 360;
+  return { az, alt: hor.altitude, time };
+}
+
+function sunHorAtAstroTime(x, obs){
+  const t = toAstroTime(x);
+  if(!t) return null;
+
+  const eq = Astronomy.Equator("Sun", t, obs, true, true);
+  const hor = Astronomy.Horizon(t, obs, eq.ra, eq.dec, "normal");
+
+  let az = hor.azimuth;
+  if(az < 0) az += 360;
+  if(az >= 360) az -= 360;
+
+  return { az, alt: hor.altitude, time: t };
+}
+
+
+// construeix punts reals del Sol
+const ymd = parseDateYMD(PARAMS.date) || {y:2026, mo:8, d:12};
+const hhmm = parseHHMM(PARAMS.centerUtc) || {hh:18, mm:30};
+
+const OBS = new Astronomy.Observer(PARAMS.lat, PARAMS.lon, PARAMS.alt);
+
+// Data base (00:00 UTC del dia)
+const dayStartUTC = new Date(Date.UTC(ymd.y, ymd.mo - 1, ymd.d, 0, 0, 0));
+// const dayStartTime = Astronomy.MakeTime(dayStartUTC);  // ja no cal per aquesta crida
+
+const ECL = Astronomy.SearchLocalSolarEclipse(dayStartUTC, OBS);
+
+const dayMidUTC  = new Date(Date.UTC(ymd.y, ymd.mo - 1, ymd.d, 12, 0, 0));
+// const dayMidTime = Astronomy.MakeTime(dayMidUTC);      // ja no cal per aquesta crida
+
+const sunSetTime = Astronomy.SearchAltitude("Sun", OBS, -1, dayMidUTC, 1, -0.833);
+
+
+// 3) Punts del camí del Sol (com ja feies)
+let sunPts = buildRealSunPath(PARAMS.lat, PARAMS.lon, PARAMS.alt, ymd, hhmm, 120, 120, 60);
+
+// ✅ RANG ALTITUD: de 0° fins C1 + 1°
+const c1Pt = (ECL && ECL.partial_begin && ECL.partial_begin.time)
+  ? sunHorAtAstroTime(ECL.partial_begin.time, OBS)
+  : null;
+
+// si per qualque motiu no hi ha C1, usam el punt central com a referència
+const refAlt = (c1Pt && Number.isFinite(c1Pt.alt))
+  ? c1Pt.alt
+  : sunPts[Math.floor(sunPts.length/2)].alt;
+
+VIEW.altMin = 0;
+VIEW.altMax = Math.max(5, Math.ceil(refAlt + 1));   // +1 grau “abans”
+
+const peakPt = (ECL && ECL.peak && ECL.peak.time)
+  ? sunHorAtAstroTime(ECL.peak.time, OBS)
+  : null;
+
+const sunAtCenter = peakPt || sunPts[Math.floor(sunPts.length/2)];
+
+const MARKS = [];
+console.log("sunAtCenter", sunAtCenter);
+
+
+// C1
+if(ECL && ECL.partial_begin && ECL.partial_begin.time){
+  const p = sunHorAtAstroTime(ECL.partial_begin.time, OBS);
+  if(p) MARKS.push({ ...p, label: `C1 ${fmtHHMM(ECL.partial_begin.time)}`, color: "rgba(255,200,0,0.95)" });
+}
+
+// Màxim
+if(ECL && ECL.peak && ECL.peak.time){
+  const p = sunHorAtAstroTime(ECL.peak.time, OBS);
+  if(p) MARKS.push({ ...p, label: `Màxim ${fmtHHMM(ECL.peak.time)}`, color: "rgba(0,200,255,0.95)" });
+}
+
+// Posta
+if (sunSetTime && sunSetTime.time) {
+  const p = sunHorAtAstroTime(sunSetTime.time, OBS);
+  if (p) {
+    MARKS.push({
+      ...p,
+      label: `Posta ${fmtHHMM(sunSetTime.time)}`,
+      color: "rgba(255,120,120,0.95)"
+    });
+  }
+}
+
+
+/* ============
+   PERFIL: fetch + fallback
+   ============ */
+const profileFallback = (() => {
+  const az0 = 220, daz = 0.2;
+  const n = Math.round((300-220)/daz)+1;
+  const alt = new Array(n).fill(0).map((_,i)=>{
+    const az = az0 + i*daz;
+    const peak = 6 * Math.exp(-0.5*Math.pow((az-262)/6,2));
+    return 0.6 + 0.4*Math.sin((az-220)/8) + peak;
+  });
+  return {az0,daz,alt};
+})();
+
+async function loadProfile(){
+  const url = "./data/horizon_profiles/perfil_demo.json";
+  const r = await fetch(url, {cache:"no-store"});
+  if(!r.ok) throw new Error("HTTP " + r.status);
+  const j = await r.json();
+  console.log("RAW JSON", j, "alt.length=", j?.alt?.length, "daz=", j?.daz);
+  return j;
+}
+
+function normalizeProfile(p){
+  if(!p || typeof p !== "object") return null;
+
+  const az0 = Number(p.az0 ?? p.azMin);
+  const daz = Number(p.daz);
+  const alt = Array.isArray(p.alt) ? p.alt : (Array.isArray(p.altitudes) ? p.altitudes : null);
+
+  if(Number.isFinite(az0) && Number.isFinite(daz) && alt) {
+    return { az0, daz, alt };
+  }
+  return null;
+}
+// ✅ RANG AZIMUT: de (C1 - 1°) fins (posta + 1°)
+const sunSetPt = (sunSetTime && sunSetTime.time)
+  ? sunHorAtAstroTime(sunSetTime.time, OBS)
+  : null;
+// === AZIMUTS CLAU PER AL LAYOUT ===
+C1_AZ   = (c1Pt   && Number.isFinite(c1Pt.az))   ? c1Pt.az   : null;
+PEAK_AZ = (peakPt && Number.isFinite(peakPt.az)) ? peakPt.az : null;
+SET_AZ  = (sunSetPt && Number.isFinite(sunSetPt.az)) ? sunSetPt.az : null;
+
+const refStartAz = (c1Pt && Number.isFinite(c1Pt.az)) ? c1Pt.az : sunPts[0].az;
+const refEndAz   = (sunSetPt && Number.isFinite(sunSetPt.az)) ? sunSetPt.az : sunPts[sunPts.length-1].az;
+
+VIEW.azMin = Math.floor(refStartAz - 1);
+VIEW.azMax = Math.ceil(refEndAz + 1);
+
+
+// ✅ camp base (mínim) que NO volem reduir mai
+BASE_AZ = { min: VIEW.azMin, max: VIEW.azMax };
+
+// seguretat: evita un camp massa estret
+if (VIEW.azMax - VIEW.azMin < 10) {
+  const mid = (VIEW.azMin + VIEW.azMax) / 2;
+  VIEW.azMin = Math.floor(mid - 5);
+  VIEW.azMax = Math.ceil(mid + 5);
+}
+
+/* ============
+   RENDER
+   ============ */
+
+function render(){
+  if (!BASE_AZ) return;   // ✅ aquí sí
+  const {w:W,h:H} = resizeCanvas();
+  ctx.clearRect(0,0,W,H);
+
+  ctx.fillStyle = "#111";
+  ctx.fillRect(0,0,W,H);
+  
+// Guardam l'antic (per restaurar al final)
+const oldMin = VIEW.azMin, oldMax = VIEW.azMax;
+
+// === 1) Definim finestra d'azimut "intel·ligent" per omplir el mòbil ===
+const availW = W - VIEW.padding.l - VIEW.padding.r;
+const availH = H - VIEW.padding.t - VIEW.padding.b;
+
+const altSpan = (VIEW.altMax - VIEW.altMin);
+
+// Anchor esquerra: C1 ha d'estar com a màxim a +2°
+const c1 = (C1_AZ != null) ? C1_AZ : (BASE_AZ ? BASE_AZ.min : VIEW.azMin);
+let azMin = c1 - 2;
+
+// Quants graus "caben" si prioritzam aprofitar l'altura (1:1):
+// pxPerDegY = availH / altSpan  => spanX = availW / pxPerDegY
+let span = (availW * altSpan) / Math.max(1, availH);
+
+// seguretat: no volem finestres ridícules
+span = Math.max(span, 10);
+
+// asseguram que entra el màxim i (si existeix) la posta
+if (PEAK_AZ != null) span = Math.max(span, (PEAK_AZ + 2) - azMin);
+if (SET_AZ  != null) span = Math.max(span, (SET_AZ  + 1) - azMin);
+
+let azMax = azMin + span;
+
+// clamp al rang real del perfil, si el tenim
+if (CURRENT_PROFILE) {
+  const profMin = CURRENT_PROFILE.az0;
+  const profMax = CURRENT_PROFILE.az0 + (CURRENT_PROFILE.alt.length - 1) * CURRENT_PROFILE.daz;
+
+  // clamp mantenint azMin ancorat tant com es pugui
+  if (azMin < profMin) {
+    const shift = profMin - azMin;
+    azMin += shift;
+    azMax += shift;
+  }
+  if (azMax > profMax) {
+    azMax = profMax;
+    // si el clamp ens “menja” massa, ajustam azMin però intentant mantenir C1 prop de l'esquerra
+    azMin = Math.max(profMin, azMax - span);
+  }
+}
+
+// Apliquem la finestra d'aquest render
+VIEW.azMin = azMin;
+VIEW.azMax = azMax;
+
+// === 2) Rectangle de dibuix amb escala 1:1 (1°X = 1°Y) ===
+const azSpan = (VIEW.azMax - VIEW.azMin);
+
+// px/deg real: el limita el costat més restrictiu (aquí ja hem triat span per omplir mòbil,
+// però si hem ampliat span per incloure posta/màxim, pot passar a limitar l'ample)
+const pxPerDeg = Math.min(availW / azSpan, availH / altSpan);
+
+const realPlotW = pxPerDeg * azSpan;
+const realPlotH = pxPerDeg * altSpan;
+
+const extraX = (availW - realPlotW) / 2;
+const extraY = (availH - realPlotH) / 2;
+
+PLOT = {
+  x0: VIEW.padding.l + extraX,
+  x1: VIEW.padding.l + extraX + realPlotW,
+  y1: VIEW.padding.t + extraY,
+  y0: VIEW.padding.t + extraY + realPlotH
+};
+
+
+drawGrid(W,H);
+drawHorizon(W,H, CURRENT_PROFILE);
+drawSunPath(W,H, sunPts, VIEW.colSunPath);
+drawSunDiscs(W, H, MARKS);
+
+// restaura valors originals
+VIEW.azMin = oldMin; 
+VIEW.azMax = oldMax;
+  
+
+  if(CURRENT_PROFILE && sunAtCenter){
+   const hHor = horizonAtAz(CURRENT_PROFILE, sunAtCenter.az);
+const SUN_R_DEG = 0.266;
+
+const delta = (hHor==null) ? null : (sunAtCenter.alt - hHor);
+
+let status = "—";
+let frac = null;
+
+if (delta != null) {
+  if (delta >= SUN_R_DEG) {
+    status = "✅ Visible (100%)";
+    frac = 1;
+  } else if (delta <= -SUN_R_DEG) {
+    status = "❌ Tapat (0%)";
+    frac = 0;
+  } else {
+    // parcial: fracció visible del disc (aprox per segment circular)
+    const d = delta;      // graus: centre respecte a la “línia” d’horitzó
+    const R = SUN_R_DEG;
+
+    // Àrea visible (disc tallat per una recta): A = R^2*acos(-d/R) + d*sqrt(R^2-d^2)
+    const A = R*R * Math.acos(-d/R) + d * Math.sqrt(R*R - d*d);
+    frac = A / (Math.PI * R*R);
+
+    const pct = Math.round(frac * 100);
+    status = `⚠️ Parcial (${pct}%)`;
+  }
+}
+    hud.textContent =
+      `Az ${sunAtCenter.az.toFixed(1)}° · Sol ${sunAtCenter.alt.toFixed(2)}° · Horitzó ${hHor?.toFixed(2)}° · Δ ${delta?.toFixed(2)}° · ${status}`;
+  }else{
+    hud.textContent = "Carregant perfil d'horitzó…";
+  }
+}
+
+window.addEventListener("resize", render);
+
+(async ()=>{
+  try{
+    const raw = await loadProfile();
+    CURRENT_PROFILE = normalizeProfile(raw) || profileFallback;
+  }catch(e){
+    console.warn("Perfil no carregat, usant fallback", e);
+    CURRENT_PROFILE = profileFallback;
+  }
+
+  // 🔎 DEBUG AQUÍ
+  console.log(
+    "PROFILE",
+    CURRENT_PROFILE.az0,
+    CURRENT_PROFILE.daz,
+    CURRENT_PROFILE.alt.length
+  );
+
+  render();
+})();
+
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js").catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
+

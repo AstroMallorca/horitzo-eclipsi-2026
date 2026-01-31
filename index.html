@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="ca">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+  <title>Horitzó Eclipsi 2026</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#000000">
+  <meta name="mobile-web-app-capable" content="yes">
+
+  <!-- iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Horitzó 2026">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+
+  <style>
+    :root{
+      --bg:#000;
+      --card:rgba(255,255,255,.06);
+      --text:#fff;
+      --muted:rgba(255,255,255,.72);
+      --border:rgba(255,255,255,.14);
+      --accent:#ff2aa8;
+    }
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
+    .wrap{max-width:520px;margin:0 auto;padding:18px;}
+    .title{font-size:22px;font-weight:700;margin:10px 0 6px;}
+    .sub{color:var(--muted);margin:0 0 16px;line-height:1.35;}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin:12px 0;}
+    .row{display:flex;gap:10px;flex-wrap:wrap;}
+    button{
+      background:transparent;color:var(--text);
+      border:1px solid var(--border);
+      padding:12px 14px;border-radius:12px;
+      font-size:15px;cursor:pointer;
+    }
+    button.primary{background:var(--accent);border-color:transparent;color:#000;font-weight:700;}
+    button:disabled{opacity:.5;cursor:not-allowed;}
+    label{display:block;font-size:13px;color:var(--muted);margin:10px 0 6px;}
+    input{
+      width:100%;
+      background:rgba(0,0,0,.25);
+      color:var(--text);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:12px 12px;
+      font-size:16px;
+      box-sizing:border-box;
+    }
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    .hint{color:var(--muted);font-size:13px;line-height:1.35;margin-top:8px;}
+    .ok{color:#7CFFB2}
+    .bad{color:#ff6b6b}
+    .sep{height:1px;background:rgba(255,255,255,.10);margin:12px 0;}
+    .modal{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,.65);
+  display:flex; align-items:center; justify-content:center;
+  padding:14px;
+  z-index:9999;
+}
+.modal.ocult{ display:none; }
+
+.modalCard{
+  width:min(920px, 96vw);
+  height:min(780px, 92vh);
+  background:rgba(0,0,0,.90);
+  border:1px solid var(--border);
+  border-radius:16px;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+
+.modalTop{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 12px;
+  border-bottom:1px solid rgba(255,255,255,.10);
+}
+.modalTitle{ font-weight:700; }
+.modalX{
+  background:transparent;
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:8px 10px;
+  border-radius:10px;
+  cursor:pointer;
+}
+
+.mapBox{ flex:1; min-height:280px; }
+.mapInfo{
+  padding:10px 12px;
+  font-size:14px;
+  color:var(--muted);
+  border-top:1px solid rgba(255,255,255,.10);
+}
+.modalActions{
+  display:flex;
+  gap:10px;
+  padding:12px;
+}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title">Horitzó Eclipsi 2026</div>
+  <p class="sub">Comprova si la totalitat serà visible des d’un lloc concret (important quan el Sol és molt baix, ~2°).</p>
+
+  <div class="card">
+    <div class="row">
+  <button id="btnGPS">📍 Ubicació actual</button>
+  <button id="btnManual">✍️ Entrada manual</button>
+  <button id="btnMap">🗺️ Tria al mapa</button>
+</div>
+    <div class="hint" id="status">Tria un mode.</div>
+
+    <div class="sep"></div>
+
+    <div id="manualBox" style="display:none;">
+      <div class="grid2">
+        <div>
+          <label for="lat">Latitud (º)</label>
+          <input id="lat" inputmode="decimal" placeholder="Ex: 39.5733">
+        </div>
+        <div>
+          <label for="lon">Longitud (º)</label>
+          <input id="lon" inputmode="decimal" placeholder="Ex: 2.6564">
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div>
+          <label for="alt">Altura (m)</label>
+          <input id="alt" inputmode="numeric" placeholder="Ex: 16">
+        </div>
+        <div>
+          <label for="rangeKm">Rang orografia (km)</label>
+          <input id="rangeKm" inputmode="numeric" placeholder="Ex: 200" value="200">
+        </div>
+      </div>
+<div class="grid2">
+  <div>
+    <label for="date">Data (YYYY-MM-DD)</label>
+    <input id="date" placeholder="2026-08-12" value="2026-08-12">
+  </div>
+  <div>
+    <label for="centerUtc">Hora clau (UTC, HH:MM)</label>
+    <input id="centerUtc" placeholder="18:30" value="18:30">
+  </div>
+</div>
+<div class="hint">L’hora és en UTC (després ja ho automatitzarem amb l’eclipsi real).</div>
+
+      <div class="hint">Pots deixar l’altura buida: si no hi és, posarem 0 m.</div>
+    </div>
+
+    <div style="margin-top:12px;">
+      <button class="primary" id="btnGo" disabled>Comprovar visibilitat →</button>
+      <div class="hint">Obrirà la vista d’horitzó amb la graella i el càlcul.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="hint">
+      <b>Privacitat:</b> la ubicació només s’usa dins el teu dispositiu. Si no vols donar permís, usa el mode manual.
+    </div>
+  </div>
+</div>
+<div id="mapModal" class="modal ocult" aria-hidden="true">
+  <div class="modalCard">
+    <div class="modalTop">
+      <div class="modalTitle">Selecciona localització</div>
+      <button id="mapClose" class="modalX">✕</button>
+    </div>
+
+    <div id="gmap" class="mapBox"></div>
+
+    <div class="mapInfo" id="mapInfo">Toca el mapa o arrossega el marcador.</div>
+
+    <div class="modalActions">
+      <button id="mapCancel">Cancel·lar</button>
+      <button class="primary" id="mapOk">Usar aquesta localització</button>
+    </div>
+  </div>
+</div>
+<script>
+  const btnGPS = document.getElementById("btnGPS");
+  const btnManual = document.getElementById("btnManual");
+  const btnMap = document.getElementById("btnMap");
+const mapModal = document.getElementById("mapModal");
+const mapClose = document.getElementById("mapClose");
+const mapCancel = document.getElementById("mapCancel");
+const mapOk = document.getElementById("mapOk");
+const mapInfo = document.getElementById("mapInfo");
+  const btnGo = document.getElementById("btnGo");
+  const manualBox = document.getElementById("manualBox");
+  const statusEl = document.getElementById("status");
+const dateEl = document.getElementById("date");
+const centerUtcEl = document.getElementById("centerUtc");
+
+  const latEl = document.getElementById("lat");
+  const lonEl = document.getElementById("lon");
+  const altEl = document.getElementById("alt");
+  const rangeEl = document.getElementById("rangeKm");
+if (!btnMap || !mapModal || !mapOk || !mapCancel || !mapClose || !mapInfo) {
+  console.warn("Mapa no inicialitzat: falta HTML del modal o el botó btnMap.");
+} else {
+  btnMap.addEventListener("click", () => {
+    openMapModal();
+    initMapIfNeeded();
+  });
+
+  mapClose.addEventListener("click", closeMapModal);
+  mapCancel.addEventListener("click", closeMapModal);
+
+  mapModal.addEventListener("click", (e) => {
+    if(e.target === mapModal) closeMapModal();
+  });
+
+  mapOk.addEventListener("click", () => {
+    if(picked.lat == null || picked.lon == null) return;
+    latEl.value = picked.lat.toFixed(6);
+    lonEl.value = picked.lon.toFixed(6);
+    altEl.value = String(Math.round(picked.alt ?? 0));
+    chosen = "manual";
+    manualBox.style.display = "block";
+    setStatus("Localització del mapa aplicada. Dades manuals OK.", true);
+    enableGoIfReady();
+    closeMapModal();
+  });
+}
+  let chosen = null; // "gps" | "manual"
+  let current = {lat:null, lon:null, alt:null};
+
+  function setStatus(msg, ok){
+    statusEl.textContent = msg;
+    statusEl.className = "hint " + (ok ? "ok" : "bad");
+  }
+
+  function parseNum(v){
+    if(v==null) return null;
+    const x = parseFloat(String(v).replace(",", "."));
+    return Number.isFinite(x) ? x : null;
+  }
+
+  function validateManual(){
+    const lat = parseNum(latEl.value);
+    const lon = parseNum(lonEl.value);
+    const alt = parseNum(altEl.value);
+    const rangeKm = parseNum(rangeEl.value) ?? 200;
+
+    if(lat==null || lon==null) return {ok:false};
+    if(lat < -90 || lat > 90) return {ok:false};
+    if(lon < -180 || lon > 180) return {ok:false};
+
+    return {ok:true, lat, lon, alt:(alt==null?0:alt), rangeKm};
+  }
+
+  function enableGoIfReady(){
+    if(chosen === "gps"){
+      btnGo.disabled = !(current.lat!=null && current.lon!=null);
+      return;
+    }
+    if(chosen === "manual"){
+      btnGo.disabled = !validateManual().ok;
+      return;
+    }
+    btnGo.disabled = true;
+  }
+let gmap = null;
+let gmarker = null;
+let picked = {lat:null, lon:null, alt:0};
+
+function openMapModal(){
+  mapModal.classList.remove("ocult");
+  mapModal.setAttribute("aria-hidden", "false");
+
+  // Si el mapa ja està creat, només recalculam el render dins el modal
+  if (gmap && window.google && google.maps) {
+    google.maps.event.trigger(gmap, "resize");
+    if (gmarker) gmap.setCenter(gmarker.getPosition());
+  }
+}
+
+function closeMapModal(){
+  mapModal.classList.add("ocult");
+  mapModal.setAttribute("aria-hidden", "true");
+}
+
+function updateMapInfo(){
+  mapInfo.textContent =
+    `lat ${picked.lat?.toFixed(6) ?? "—"}, lon ${picked.lon?.toFixed(6) ?? "—"}, alt ${Math.round(picked.alt ?? 0)} m`;
+}
+
+// (Opcional) intenta obtenir altitud via ElevationService (si tens l’API d’elevation activada)
+function tryElevation(lat, lon){
+  return new Promise(resolve => {
+    try{
+      if(!window.google || !google.maps) return resolve(null);
+      const svc = new google.maps.ElevationService();
+      svc.getElevationForLocations(
+        { locations: [{ lat, lng: lon }] },
+        (results, status) => {
+          const h = (status === "OK" && results && results[0]) ? results[0].elevation : null;
+          resolve(Number.isFinite(h) ? h : null);
+        }
+      );
+    }catch(e){
+      resolve(null);
+    }
+  });
+}
+
+async function setPicked(lat, lon){
+  picked.lat = lat;
+  picked.lon = lon;
+  picked.alt = 0;
+  updateMapInfo();
+
+  const h = await tryElevation(lat, lon);
+  if(Number.isFinite(h)){
+    picked.alt = h;
+    updateMapInfo();
+  }
+}
+
+function initMapIfNeeded(){
+  if(gmap) return;
+  if(!window.google || !google.maps){
+    mapInfo.textContent = "Google Maps no s'ha carregat (falta API key o script).";
+    return;
+  }
+
+  // punt inicial: si tens manual omplert, l’agafa; si no, usa la ubicació GPS si existeix; si no, Palma.
+  const vMan = validateManual();
+  const startLat = vMan.ok ? vMan.lat : (current.lat ?? 39.5733);
+  const startLon = vMan.ok ? vMan.lon : (current.lon ?? 2.6564);
+
+  gmap = new google.maps.Map(document.getElementById("gmap"), {
+    center: { lat: startLat, lng: startLon },
+    zoom: 12,
+    mapTypeId: "terrain",
+    streetViewControl: false,
+    fullscreenControl: false,
+    mapTypeControl: false
+  });
+
+  gmarker = new google.maps.Marker({
+    position: { lat: startLat, lng: startLon },
+    map: gmap,
+    draggable: true
+  });
+
+  setPicked(startLat, startLon);
+
+  gmap.addListener("click", async (e) => {
+    const lat = e.latLng.lat();
+    const lon = e.latLng.lng();
+    gmarker.setPosition({lat, lng: lon});
+    gmap.panTo({lat, lng: lon});
+    await setPicked(lat, lon);
+  });
+
+  gmarker.addListener("dragend", async () => {
+    const p = gmarker.getPosition();
+    const lat = p.lat();
+    const lon = p.lng();
+    await setPicked(lat, lon);
+  });
+}
+  btnManual.addEventListener("click", () => {
+    chosen = "manual";
+    manualBox.style.display = "block";
+    setStatus("Mode manual: introdueix coordenades.", true);
+    enableGoIfReady();
+  });
+
+  btnGPS.addEventListener("click", () => {
+    chosen = "gps";
+    manualBox.style.display = "none";
+    statusEl.className = "hint";
+    statusEl.textContent = "Cercant ubicació…";
+
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        current.lat = pos.coords.latitude;
+        current.lon = pos.coords.longitude;
+        current.alt = (pos.coords.altitude == null) ? 0 : pos.coords.altitude;
+
+        setStatus(`Ubicació OK: ${current.lat.toFixed(5)}, ${current.lon.toFixed(5)} (alt ${Math.round(current.alt)} m)`, true);
+        enableGoIfReady();
+      },
+      err => {
+        setStatus("No s'ha pogut obtenir la ubicació. Usa el mode manual.", false);
+        enableGoIfReady();
+      },
+      { enableHighAccuracy:true, timeout:12000, maximumAge:30000 }
+    );
+  });
+
+  // Validació live dels inputs
+  [latEl, lonEl, altEl, rangeEl, dateEl, centerUtcEl].forEach(el => {
+    el.addEventListener("input", () => {
+      if(chosen === "manual"){
+        const v = validateManual();
+        if(v.ok) setStatus("Dades manuals OK.", true);
+        else setStatus("Introdueix lat/lon vàlids.", false);
+        enableGoIfReady();
+      }
+    });
+  });
+
+  btnGo.addEventListener("click", () => {
+    let lat, lon, alt, rangeKm;
+
+    if(chosen === "gps"){
+      lat = current.lat; lon = current.lon; alt = current.alt ?? 0;
+      rangeKm = parseNum(rangeEl.value) ?? 200; // si vols permetre canviar-ho igualment
+    }else{
+      const v = validateManual();
+      if(!v.ok) return;
+      ({lat, lon, alt, rangeKm} = v);
+    }
+
+    // Enviam paràmetres a la vista canvas
+    const url = new URL("visor.html", location.href);
+    url.searchParams.set("lat", lat.toFixed(6));
+    url.searchParams.set("lon", lon.toFixed(6));
+    url.searchParams.set("alt", String(Math.round(alt)));
+    url.searchParams.set("rangeKm", String(Math.round(rangeKm)));
+    url.searchParams.set("date", (dateEl.value || "2026-08-12").trim());
+    url.searchParams.set("centerUtc", (centerUtcEl.value || "18:30").trim());
+
+    location.href = url.toString();
+  });
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js").catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
