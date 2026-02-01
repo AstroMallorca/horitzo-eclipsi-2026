@@ -290,7 +290,7 @@ const VIEW = {
   azMax: 300,
   altMin: 0,
   altMax: 25,
-  padding: {l: 40, r: 14, t: 14, b: 34},
+  padding: { l: 40, r: 40, t: 14, b: 34 },
   gridAzStep: 10,
   gridAltStep: 5,
 
@@ -617,6 +617,9 @@ function findSeaLevelSetFromSunPts(points){
   }
   return null;
 }
+// ✅ Posta a nivell del mar (alt=0) per a LAYOUT
+const seaSetPt = findSeaLevelSetFromSunPts(sunPts);
+SEA_SET_AZ = (seaSetPt && Number.isFinite(seaSetPt.az)) ? seaSetPt.az : null;
 
 // ====== construeix punts reals del Sol ======
 const ymd = parseDateYMD(PARAMS.date) || {y:2026, mo:8, d:12};
@@ -775,64 +778,58 @@ function render(){
   ctx.fillStyle = "#111";
   ctx.fillRect(0,0,W,H);
 
-  const availW = W - VIEW.padding.l - VIEW.padding.r;
-  const availH = H - VIEW.padding.t - VIEW.padding.b;
+const availW = W - VIEW.padding.l - VIEW.padding.r;
+const availH = H - VIEW.padding.t - VIEW.padding.b;
 
-  const altSpan = (VIEW.altMax - VIEW.altMin);
+const altSpan = (VIEW.altMax - VIEW.altMin);
 
-  // finestra fixa C1→Posta (mar)
-  VIEW.azMin = BASE_AZ.min;
-  VIEW.azMax = BASE_AZ.max;
+// punt esquerra: C1, punt dreta: posta a nivell del mar (alt=0)
+// fallback: si no tenim SEA_SET_AZ, usam SET_AZ (posta -0.833) o bé BASE_AZ
+const leftAz  = (Number.isFinite(C1_AZ) ? C1_AZ : BASE_AZ.min);
+const rightAz = (Number.isFinite(SEA_SET_AZ) ? SEA_SET_AZ : (Number.isFinite(SET_AZ) ? SET_AZ : BASE_AZ.max));
 
-  const azSpan = (VIEW.azMax - VIEW.azMin);
+// centre perquè sigui simètric (això és la clau)
+const midAz = (leftAz + rightAz) / 2;
 
-  // 1) escala màxima per alçada (1:1)
-  let pxPerDeg = availH / altSpan;
+// marge en graus extra a cada costat (si vols més “aire”, puja-ho)
+const MARGIN_AZ = 1.0;
 
-  // 2) limita l’ample perquè la simetria sigui possible (si tenim C1 i SET)
-  if (Number.isFinite(C1_AZ) && Number.isFinite(SET_AZ)) {
-    const uC = (C1_AZ  - VIEW.azMin) / azSpan; // 0..1
-    const uS = (SET_AZ - VIEW.azMin) / azSpan;
+// amplada mínima en graus perquè càpiguen els punts + marges
+const needAzSpan = Math.abs(rightAz - leftAz) + 2*MARGIN_AZ;
 
-    const k  = uC + uS;
-    const k2 = 2 - k;
+// 1) Escala màxima per alçada (1:1)
+let pxPerDeg = availH / altSpan;
 
-    const availWInner = W - VIEW.padding.l - VIEW.padding.r;
+// 2) Si amb aquesta escala l’amplada no basta, reduïm escala per encaixar needAzSpan
+const maxAzSpanAtThisScale = availW / pxPerDeg;
+let azSpan;
 
-    let Rmax = availWInner;
-    if (k  > 1e-6) Rmax = Math.min(Rmax, availWInner / k);
-    if (k2 > 1e-6) Rmax = Math.min(Rmax, availWInner / k2);
+if (maxAzSpanAtThisScale < needAzSpan) {
+  // reduïm escala perquè l’ample encaixi exactament
+  pxPerDeg = availW / needAzSpan;
+  azSpan = needAzSpan;
+} else {
+  // podem omplir tot l’ample amb la mateixa escala 1:1
+  azSpan = maxAzSpanAtThisScale;
+}
 
-    pxPerDeg = Math.min(pxPerDeg, Rmax / azSpan);
-  }
+// ✅ finestra final d’azimut, simètrica
+VIEW.azMin = midAz - azSpan/2;
+VIEW.azMax = midAz + azSpan/2;
 
-  // 3) i mai més ample que la pantalla
-  pxPerDeg = Math.min(pxPerDeg, availW / azSpan);
+// ✅ PLOT ocupa tot l’ample (així NO queda buit dreta)
+const realPlotW = availW;
+const realPlotH = pxPerDeg * altSpan;
 
-  const realPlotW = pxPerDeg * azSpan;
-  const realPlotH = pxPerDeg * altSpan;
+const extraY = (availH - realPlotH) / 2;
 
-  const extraY = (availH - realPlotH) / 2;
+PLOT = {
+  x0: VIEW.padding.l,
+  x1: VIEW.padding.l + realPlotW,
+  y1: VIEW.padding.t + extraY,
+  y0: VIEW.padding.t + extraY + realPlotH
+};
 
-  // 4) x0 per simetria exacta
-  let x0 = VIEW.padding.l + (availW - realPlotW) / 2; // fallback centrat
-
-  if (Number.isFinite(C1_AZ) && Number.isFinite(SET_AZ)) {
-    const uC = (C1_AZ  - VIEW.azMin) / azSpan;
-    const uS = (SET_AZ - VIEW.azMin) / azSpan;
-
-    const padL = VIEW.padding.l;
-    const padR = VIEW.padding.r;
-
-    x0 = ((W - padR) + padL - (uC + uS) * realPlotW) / 2;
-  }
-
-  PLOT = {
-    x0,
-    x1: x0 + realPlotW,
-    y1: VIEW.padding.t + extraY,
-    y0: VIEW.padding.t + extraY + realPlotH
-  };
 
   drawGrid(W,H);
   drawSeaLevel();
