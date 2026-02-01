@@ -793,44 +793,36 @@ const altSpan = (VIEW.altMax - VIEW.altMin);
 const leftAz  = (Number.isFinite(C1_AZ) ? C1_AZ : BASE_AZ.min);
 const rightAz = (Number.isFinite(SEA_SET_AZ) ? SEA_SET_AZ : (Number.isFinite(SET_AZ) ? SET_AZ : BASE_AZ.max));
 
-// centre perquè sigui simètric (això és la clau)
+// centre perquè sigui simètric
 const midAz = (leftAz + rightAz) / 2;
 
-// marge en graus extra a cada costat (si vols més “aire”, puja-ho)
+// marge en graus extra a cada costat (aire)
 const MARGIN_LAYOUT_AZ = 1.0;
 
-// amplada mínima en graus perquè càpiguen els punts + marges
-const needAzSpan = Math.abs(rightAz - leftAz) + 2*MARGIN_LAYOUT_AZ;
+// ✅ rang d’azimut que REALMENT volem veure (NO l’eixamplam per omplir ample)
+const needAzSpan = Math.abs(rightAz - leftAz) + 2 * MARGIN_LAYOUT_AZ;
 
-// 1) Escala màxima per alçada (1:1)
-let pxPerDeg = availH / altSpan;
+// ✅ escalam perquè càpiga TANT en ample com en alçada
+const pxPerDeg = Math.min(
+  availH / altSpan,
+  availW / needAzSpan
+);
 
-// 2) Si amb aquesta escala l’amplada no basta, reduïm escala per encaixar needAzSpan
-const maxAzSpanAtThisScale = availW / pxPerDeg;
-let azSpan;
+// ✅ finestra final d’azimut (justa i simètrica)
+VIEW.azMin = midAz - needAzSpan / 2;
+VIEW.azMax = midAz + needAzSpan / 2;
 
-if (maxAzSpanAtThisScale < needAzSpan) {
-  // reduïm escala perquè l’ample encaixi exactament
-  pxPerDeg = availW / needAzSpan;
-  azSpan = needAzSpan;
-} else {
-  // podem omplir tot l’ample amb la mateixa escala 1:1
-  azSpan = maxAzSpanAtThisScale;
-}
-
-// ✅ finestra final d’azimut, simètrica
-VIEW.azMin = midAz - azSpan/2;
-VIEW.azMax = midAz + azSpan/2;
-
-// ✅ PLOT ocupa tot l’ample (així NO queda buit dreta)
-const realPlotW = availW;
+// ✅ mida real del plot en píxels
+const realPlotW = pxPerDeg * needAzSpan;
 const realPlotH = pxPerDeg * altSpan;
 
+// ✅ centrat (marges esquerra/dreta iguals i també vertical)
+const extraX = (availW - realPlotW) / 2;
 const extraY = (availH - realPlotH) / 2;
 
 PLOT = {
-  x0: VIEW.padding.l,
-  x1: VIEW.padding.l + realPlotW,
+  x0: VIEW.padding.l + extraX,
+  x1: VIEW.padding.l + extraX + realPlotW,
   y1: VIEW.padding.t + extraY,
   y0: VIEW.padding.t + extraY + realPlotH
 };
