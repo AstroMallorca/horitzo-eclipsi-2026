@@ -313,6 +313,8 @@ let PLOT = null;
 let C1_AZ = null;
 let PEAK_AZ = null;
 let SET_AZ = null;
+  let SEA_SET_AZ = null;
+
 
 /* ============
    HELPERS
@@ -617,9 +619,6 @@ function findSeaLevelSetFromSunPts(points){
   }
   return null;
 }
-// ✅ Posta a nivell del mar (alt=0) per a LAYOUT
-const seaSetPt = findSeaLevelSetFromSunPts(sunPts);
-SEA_SET_AZ = (seaSetPt && Number.isFinite(seaSetPt.az)) ? seaSetPt.az : null;
 
 // ====== construeix punts reals del Sol ======
 const ymd = parseDateYMD(PARAMS.date) || {y:2026, mo:8, d:12};
@@ -645,6 +644,11 @@ let sunPts = buildSunPathBetweenTimes(OBS, tStart, tEnd, 60);
 if (!Array.isArray(sunPts) || sunPts.length < 2) {
   console.warn("sunPts buit; faig fallback ±4h al voltant del centerUtc");
   sunPts = buildRealSunPath(PARAMS.lat, PARAMS.lon, PARAMS.alt, ymd, hhmm, 240, 240, 60);
+}
+// ✅ Posta a nivell del mar (alt=0) per a LAYOUT
+{
+  const seaSetPt = findSeaLevelSetFromSunPts(sunPts);
+  SEA_SET_AZ = (seaSetPt && Number.isFinite(seaSetPt.az)) ? seaSetPt.az : null;
 }
 
 // ✅ Rang ALT (tu el tens com C1+1, el deix igual)
@@ -696,7 +700,7 @@ PEAK_AZ = (peakPt && Number.isFinite(peakPt.az)) ? peakPt.az : null;
 SET_AZ  = (sunSetPt && Number.isFinite(sunSetPt.az)) ? sunSetPt.az : null;
 
 // marge per veure una mica abans/després
-const MARGIN_AZ = 1.0;
+const MARGIN_LAYOUT_AZ = 1.0;
 
 let AZ_MIN = (C1_AZ != null) ? (C1_AZ - MARGIN_AZ) : 220;
 let AZ_MAX = (SET_AZ != null) ? (SET_AZ + MARGIN_AZ) : 300;
@@ -795,7 +799,7 @@ const midAz = (leftAz + rightAz) / 2;
 const MARGIN_AZ = 1.0;
 
 // amplada mínima en graus perquè càpiguen els punts + marges
-const needAzSpan = Math.abs(rightAz - leftAz) + 2*MARGIN_AZ;
+const needAzSpan = Math.abs(rightAz - leftAz) + 2*MARGIN_LAYOUT_AZ;
 
 // 1) Escala màxima per alçada (1:1)
 let pxPerDeg = availH / altSpan;
