@@ -591,6 +591,32 @@ function buildSunPathBetweenTimes(obs, tStart, tEnd, stepSec=60){
   }
   return pts;
 }
+function findSeaLevelSetFromSunPts(points){
+  // cerca el primer tall de + a 0 o menys (posta a alt=0)
+  for(let i=1; i<points.length; i++){
+    const p0 = points[i-1], p1 = points[i];
+    if(!p0 || !p1) continue;
+    if(!Number.isFinite(p0.alt) || !Number.isFinite(p1.alt)) continue;
+    if(!Number.isFinite(p0.az)  || !Number.isFinite(p1.az)) continue;
+
+    if(p0.alt > 0 && p1.alt <= 0){
+      const f = p0.alt / (p0.alt - p1.alt); // 0..1
+      const az = p0.az + f * (p1.az - p0.az);
+
+      // temps interpolat (si hi és)
+      let time = null;
+      if(p0.time && p1.time){
+        const d0 = astroTimeToDate(p0.time);
+        const d1 = astroTimeToDate(p1.time);
+        if(d0 && d1){
+          time = new Date(d0.getTime() + f*(d1.getTime() - d0.getTime()));
+        }
+      }
+      return { az, alt: 0, time };
+    }
+  }
+  return null;
+}
 
 // ====== construeix punts reals del Sol ======
 const ymd = parseDateYMD(PARAMS.date) || {y:2026, mo:8, d:12};
@@ -758,14 +784,61 @@ function render(){
   VIEW.azMin = BASE_AZ.min;
   VIEW.azMax = BASE_AZ.max;
 
-  const azSpan = (VIEW.azMax - VIEW.azMin);
+const azSpan = (VIEW.azMax - VIEW.azMin);
 
-  const pxPerDeg = Math.min(availW / azSpan, availH / altSpan);
+// 1) escala màxima per alçada (sempre 1:1)
+let pxPerDeg = availH / altSpan;
 
-  const realPlotW = pxPerDeg * azSpan;
-  const realPlotH = pxPerDeg * altSpan;
+// 2) si tenim C1 i SET (posta a -0.833), calculam l'ample màxim que permet simetria
+if (Number.isFinite(C1_AZ) && Number.isFinite(SET_AZ)) {
+  const uC = (C1_AZ  - VIEW.azMin) / azSpan; // 0..1
+  const uS = (SET_AZ - VIEW.azMin) / azSpan;
+
+  // k = uC + uS, i 2-k = (1-uC)+(1-uS)
+  const k  = uC + uS;
+  const k2 = 2 - k;
+
+  // ample disponible real entre marges
+  const availWInner = W - VIEW.padding.l - VIEW.padding.r;
+
+  // R <= availWInner / k  i  R <= availWInner / (2-k)
+  // (evitam divisions rares si k~0 o k~2)
+  let Rmax = availWInner;
+  if (k  > 1e-6) Rmax = Math.min(Rmax, availWInner / k);
+  if (k2 > 1e-6) Rmax = Math.min(Rmax, availWInner / k2);
+
+  // pxPerDeg no pot fer un plot més ample que Rmax
+  pxPerDeg = Math.min(pxPerDeg, Rmax / azSpan);
+}
+
+// 3) i tampoc pot excedir l'ample disponible (per seguretat)
+pxPerDeg = Math.min(pxPerDeg, availW / azSpan);
+
+const realPlotW = pxPerDeg * azSpan;
+const realPlotH = pxPerDeg * altSpan;
 
 const extraY = (availH - realPlotH) / 2;
+
+// 4) ara sí: podem col·locar x0 per simetria (i normalment ja no cal clamp)
+let x0 = VIEW.padding.l + (availW - realPlotW) / 2; // fallback centrat
+
+if (Number.isFinite(C1_AZ) && Number.isFinite(SET_AZ)) {
+  const uC = (C1_AZ  - VIEW.azMin) / azSpan;
+  const uS = (SET_AZ - VIEW.azMin) / azSpan;
+
+  const padL = VIEW.padding.l;
+  const padR = VIEW.padding.r;
+
+  x0 = ((W - padR) + padL - (uC + uS) * realPlotW) / 2;
+}
+
+PLOT = {
+  x0,
+  x1: x0 + realPlotW,
+  y1: VIEW.padding.t + extraY,
+  y0: VIEW.padding.t + extraY + realPlotH
+};
+
 
 // ✅ NEW: col·locació en X perquè:
 // dist(C1, esquerra) == dist(Posta, dreta), sense deformar (només translate)
