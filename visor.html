@@ -108,170 +108,139 @@
   function tileFilename(tileX, tileY){
     return `t_x${pad3(tileX)}_y${pad3(tileY)}.tif`;
   }
-    function azToBucket(azDeg){
+  function azToBucket(azDeg){
     let a = azDeg % 360;
     if (a < 0) a += 360;
-
     const a01 = Math.round(a * 10) / 10;
     return "az" + String(a01).replace(".", "_");
   }
   async function resolveTifPath(lat, lon, azDeg){
-  const { tileX, tileY } = await latLonToTile(lat, lon);
-  const azKey = azToBucket(azDeg);
+    const { tileX, tileY } = await latLonToTile(lat, lon);
+    const azKey = azToBucket(azDeg);
+    const tif = `./data/tiles/out_deflate/${azKey}/${tileFilename(tileX, tileY)}`;
+    return { azKey, tileX, tileY, tif };
+  }
 
-  const tif = `./data/tiles/out_deflate/${azKey}/${tileFilename(tileX, tileY)}`;
-  return { azKey, tileX, tileY, tif };
-}
   // Cache de TIFFs per no rebaixar-los cada vegada
-const __tiffCache = new Map();
+  const __tiffCache = new Map();
 
-async function loadTiff(url){
-  if (__tiffCache.has(url)) return __tiffCache.get(url);
+  async function loadTiff(url){
+    if (__tiffCache.has(url)) return __tiffCache.get(url);
 
-  const ab = await fetch(url).then(r => r.arrayBuffer());
-  const tiff = await GeoTIFF.fromArrayBuffer(ab);
-  const img = await tiff.getImage(); // 1 banda Float32
-  const obj = { tiff, img };
+    const r = await fetch(url);
+    if(!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText} (${url})`); // ✅ CHANGE: error clar
+    const ab = await r.arrayBuffer();
 
-  __tiffCache.set(url, obj);
-  return obj;
-}
+    const tiff = await GeoTIFF.fromArrayBuffer(ab);
+    const img = await tiff.getImage(); // 1 banda Float32
+    const obj = { tiff, img };
 
-// Calcula el píxel (col,row) dins el tile 10km segons meta + tileX,tileY
-function enToPixelInTile(E, N, meta, tileX, tileY){
-  const tileSize = meta.tile_size_m;        // 10000
-  const res = meta.grid_res_m;              // 100
-  const pxN = meta.tile_px;                 // 100
-
-  const xmin0 = meta.tile_grid.origin_xmin; // origen mosaic
-  const ymax0 = meta.tile_grid.origin_ymax;
-
-  // Extensió del tile en metres
-  const tileXmin = xmin0 + tileX * tileSize;
-  const tileYmax = ymax0 - tileY * tileSize;  // perquè tileY creix cap avall
-
-  const col = Math.floor((E - tileXmin) / res);
-  const row = Math.floor((tileYmax - N) / res);
-
-  const inTile = (col >= 0 && col < pxN && row >= 0 && row < pxN);
-  return { col, row, inTile };
-}
-
-// Llegeix el valor h_crit per lat/lon/az
-async function getHCrit(lat, lon, azDeg){
-  const meta = await loadMeta(); // assegura que ja usa ./data/tiles/meta.json
-  const { E, N } = lonLatToEN(lon, lat);
-
-  const { tileX, tileY, tif } = await resolveTifPath(lat, lon, azDeg);
-  const { col, row, inTile } = enToPixelInTile(E, N, meta, tileX, tileY);
-
-  if (!inTile) throw new Error(`Punt fora del tile: col=${col}, row=${row}`);
-
-  const { img } = await loadTiff(tif);
-
-  // Llegeix una finestreta 1x1 (mínim) i agafa el valor [0]
-  const rasters = await img.readRasters({
-    window: [col, row, col + 1, row + 1],
-    width: 1,
-    height: 1,
-    interleave: true
-  });
-
-  const v = rasters[0];
-  return { h_crit: v, tileX, tileY, col, row, tif };
-}
-  function fillGapsLinear(arr){
-  const a = arr.slice(); // còpia
-
-  for(let i=0; i<a.length; i++){
-    if(Number.isFinite(a[i])) continue;
-
-    // cerca veí de l'esquerra
-    let L = i - 1;
-    while(L >= 0 && !Number.isFinite(a[L])) L--;
-
-    // cerca veí de la dreta
-    let R = i + 1;
-    while(R < a.length && !Number.isFinite(a[R])) R++;
-
-    // si tenim els dos costats, interpolam
-    if(L >= 0 && R < a.length){
-      const t = (i - L) / (R - L);
-      a[i] = a[L] * (1 - t) + a[R] * t;
-    }
-    // si només hi ha un costat, ho deixam NaN (no inventam)
+    __tiffCache.set(url, obj);
+    return obj;
   }
 
-  return a;
-}
+  // Calcula el píxel (col,row) dins el tile 10km segons meta + tileX,tileY
+  function enToPixelInTile(E, N, meta, tileX, tileY){
+    const tileSize = meta.tile_size_m;        // 10000
+    const res = meta.grid_res_m;              // 100
+    const pxN = meta.tile_px;                 // 100
+
+    const xmin0 = meta.tile_grid.origin_xmin; // origen mosaic
+    const ymax0 = meta.tile_grid.origin_ymax;
+
+    // Extensió del tile en metres
+    const tileXmin = xmin0 + tileX * tileSize;
+    const tileYmax = ymax0 - tileY * tileSize;  // tileY creix cap avall
+
+    const col = Math.floor((E - tileXmin) / res);
+    const row = Math.floor((tileYmax - N) / res);
+
+    const inTile = (col >= 0 && col < pxN && row >= 0 && row < pxN);
+    return { col, row, inTile };
+  }
+
+  // Llegeix el valor h_crit per lat/lon/az
+  async function getHCrit(lat, lon, azDeg){
+    const meta = await loadMeta();
+    const { E, N } = lonLatToEN(lon, lat);
+
+    const { tileX, tileY, tif } = await resolveTifPath(lat, lon, azDeg);
+    const { col, row, inTile } = enToPixelInTile(E, N, meta, tileX, tileY);
+
+    if (!inTile) throw new Error(`Punt fora del tile: col=${col}, row=${row}`);
+
+    const { img } = await loadTiff(tif);
+
+    const rasters = await img.readRasters({
+      window: [col, row, col + 1, row + 1],
+      width: 1,
+      height: 1,
+      interleave: true
+    });
+
+    const v = rasters[0];
+    return { h_crit: v, tileX, tileY, col, row, tif };
+  }
+
   async function buildHorizonProfileFromTiles(lat, lon, azMin, azMax, daz=0.1, opts={}){
-  const {
-    concurrency = 6,
-    onProgress = null,    // (done, total) => void
-    progressive = true,   // si true, actualitza CURRENT_PROFILE mentre carrega
-    throttleRenderEvery = 10
-  } = opts;
+    const {
+      concurrency = 6,
+      onProgress = null,
+      progressive = true,
+      throttleRenderEvery = 10
+    } = opts;
 
-  // discretitza rang
-  const n = Math.floor((azMax - azMin)/daz) + 1;
-  const az0 = azMin;
-  const alt = new Array(n).fill(null);
+    const n = Math.floor((azMax - azMin)/daz) + 1;
+    const az0 = azMin;
+    const alt = new Array(n).fill(null);
 
-  let done = 0;
-  let nextRenderAt = throttleRenderEvery;
+    let done = 0;
+    let nextRenderAt = throttleRenderEvery;
 
-  // cua d'índexs
-  const idxs = Array.from({length:n}, (_,i)=>i);
+    const idxs = Array.from({length:n}, (_,i)=>i);
 
-  async function worker(){
-    while(idxs.length){
-      const i = idxs.shift();
-      const az = az0 + i*daz;
+    async function worker(){
+      while(idxs.length){
+        const i = idxs.shift();
+        const az = az0 + i*daz;
 
-      try{
-        const r = await getHCrit(lat, lon, az);
-        alt[i] = r.h_crit;
-      }catch(e){
-        // si falta un azimut/fitxer, deixam null
-        alt[i] = null;
-      }
+        try{
+          const r = await getHCrit(lat, lon, az);
+          alt[i] = r.h_crit;
+        }catch(e){
+          alt[i] = null; // falta tile/az
+        }
 
-      done++;
-      if(onProgress) onProgress(done, n);
+        done++;
+        if(onProgress) onProgress(done, n);
 
-      // perfil progressiu (per veure com es “dibuixa”)
-      if(progressive && done >= nextRenderAt){
-        nextRenderAt += throttleRenderEvery;
-       CURRENT_PROFILE = { az0, daz, alt: alt.map(v => (v==null ? NaN : v)) };
-        render();
+        if(progressive && done >= nextRenderAt){
+          nextRenderAt += throttleRenderEvery;
+          CURRENT_PROFILE = { az0, daz, alt: alt.map(v => (v==null ? NaN : v)) };
+          render();
+        }
       }
     }
+
+    const k = Math.max(1, concurrency);
+    await Promise.all(Array.from({length:k}, ()=>worker()));
+
+    const finalAlt = alt.map(v => (v==null ? NaN : v));
+    return { az0, daz, alt: finalAlt };
   }
-
-  // arrenca workers
-  const k = Math.max(1, concurrency);
-  await Promise.all(Array.from({length:k}, ()=>worker()));
-
-  // al final, substitueix nulls per 0 (o per nodata si prefereixes)
-  const finalAlt = alt.map(v => (v==null ? NaN : v));
-
-  return { az0, daz, alt: finalAlt };
-}
 
   async function evaluateVisibility(lat, lon, azDeg, altSolDeg){
-  const r = await getHCrit(lat, lon, azDeg);
+    const r = await getHCrit(lat, lon, azDeg);
 
-  // nodata
-  if (r.h_crit === -9999 || !Number.isFinite(r.h_crit)) {
-    return { ...r, altSol: altSolDeg, visible: null, delta: null };
+    if (r.h_crit === -9999 || !Number.isFinite(r.h_crit)) {
+      return { ...r, altSol: altSolDeg, visible: null, delta: null };
+    }
+
+    const delta = altSolDeg - r.h_crit;
+    const visible = delta > 0;
+
+    return { ...r, altSol: altSolDeg, visible, delta };
   }
-
-  const delta = altSolDeg - r.h_crit;
-  const visible = delta > 0;
-
-  return { ...r, altSol: altSolDeg, visible, delta };
-}
-
 </script>
 
 <script src="js/astronomy.browser.min.js"></script>
@@ -300,7 +269,6 @@ const PARAMS = {
   centerUtc: getParam("centerUtc", "18:30")
 };
 
-// si s'obre directament sense coords, demo
 if(PARAMS.lat == null || PARAMS.lon == null){
   PARAMS.lat = 39.5733;
   PARAMS.lon = 2.6564;
@@ -336,15 +304,15 @@ const VIEW = {
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
 const hud = document.getElementById("hud");
-// ✅ globals (UNA sola vegada)
+
+// globals
 let CURRENT_PROFILE = null;
 let BASE_AZ = null;
-  let PLOT = null;   // ✅ rectangle real de dibuix amb escala 1:1
-  let C1_AZ = null;
+let PLOT = null;
+
+let C1_AZ = null;
 let PEAK_AZ = null;
 let SET_AZ = null;
-
-
 
 /* ============
    HELPERS
@@ -365,14 +333,15 @@ function mapX(az){
   return x0 + t * (x1 - x0);
 }
 function mapY(alt){
-  const y0 = PLOT.y0; // bottom
-  const y1 = PLOT.y1; // top
+  const y0 = PLOT.y0;
+  const y1 = PLOT.y1;
   const tt = (alt - VIEW.altMin) / (VIEW.altMax - VIEW.altMin);
   return y0 - tt * (y0 - y1);
 }
 
 function inViewAz(az){ return az >= VIEW.azMin && az <= VIEW.azMax; }
 function inViewAlt(alt){ return alt >= VIEW.altMin && alt <= VIEW.altMax; }
+
 function drawSeaLevel(){
   if(!PLOT) return;
   const y = mapY(0);
@@ -395,8 +364,8 @@ function drawGrid(W,H){
     const bold = (az % 20 === 0);
     ctx.strokeStyle = bold ? VIEW.colGridBold : VIEW.colGrid;
     ctx.beginPath();
-   ctx.moveTo(x, PLOT.y1);
-ctx.lineTo(x, PLOT.y0);
+    ctx.moveTo(x, PLOT.y1);
+    ctx.lineTo(x, PLOT.y0);
     ctx.stroke();
 
     ctx.fillStyle = VIEW.colText;
@@ -411,8 +380,8 @@ ctx.lineTo(x, PLOT.y0);
     const bold = (alt % 10 === 0);
     ctx.strokeStyle = bold ? VIEW.colGridBold : VIEW.colGrid;
     ctx.beginPath();
- ctx.moveTo(PLOT.x0, y);
-ctx.lineTo(PLOT.x1, y);
+    ctx.moveTo(PLOT.x0, y);
+    ctx.lineTo(PLOT.x1, y);
     ctx.stroke();
 
     ctx.fillStyle = VIEW.colText;
@@ -439,10 +408,10 @@ function drawHorizon(W,H, profile){
     const az = az0 + i*daz;
     if(!inViewAz(az)) continue;
     const a = alt[i];
-if(!Number.isFinite(a)) { started = false; continue; }
-    
- const x = mapX(az);
-const y = mapY(a);
+    if(!Number.isFinite(a)) { started = false; continue; }
+
+    const x = mapX(az);
+    const y = mapY(a);
     if(!started){ ctx.moveTo(x,y); started=true; }
     else ctx.lineTo(x,y);
   }
@@ -466,8 +435,8 @@ function drawSunPath(W, H, points, color){
     if(!ok){ prev = null; continue; }
     if(prev && Math.abs(p.az - prev.az) > 5) prev = null;
 
-   const x = mapX(p.az);
-const y = mapY(p.alt);
+    const x = mapX(p.az);
+    const y = mapY(p.alt);
 
     if(!started || !prev){
       ctx.moveTo(x, y);
@@ -481,18 +450,13 @@ const y = mapY(p.alt);
   ctx.stroke();
   ctx.restore();
 }
+
 function drawSunDiscs(W, H, marks){
   if(!marks || !marks.length) return;
-  if(!PLOT) return; // encara no s'ha calculat el rectangle de dibuix
+  if(!PLOT) return;
 
-  // radi solar aproximat en graus
-  const sunRadiusDeg = 0.266; // ~16 arcmin
-
-  // ✅ píxels per grau (ha de ser 1:1). Ho traiem del PLOT real.
+  const sunRadiusDeg = 0.266;
   const pxPerDegY = (PLOT.y0 - PLOT.y1) / (VIEW.altMax - VIEW.altMin);
-  // (equivalent en X: (PLOT.x1-PLOT.x0)/(VIEW.azMax-VIEW.azMin))
-
-  // ✅ radi del Sol en píxels amb la mateixa escala que horitzó/camí
   const rPx = sunRadiusDeg * pxPerDegY;
 
   ctx.save();
@@ -510,12 +474,10 @@ function drawSunDiscs(W, H, marks){
     ctx.strokeStyle = m.color || "rgba(255,255,255,0.9)";
     ctx.fillStyle = ctx.strokeStyle;
 
-    // disc a escala real
     ctx.beginPath();
     ctx.arc(x, y, Math.max(2, rPx), 0, Math.PI*2);
     ctx.stroke();
 
-    // punt central (això el deixo fix perquè sigui visible sempre)
     ctx.beginPath();
     ctx.arc(x, y, 2.5, 0, Math.PI*2);
     ctx.fill();
@@ -526,21 +488,6 @@ function drawSunDiscs(W, H, marks){
   }
 
   ctx.restore();
-}
-
-function horizonAtAz(profile, az){
-  const i = (az - profile.az0) / profile.daz;
-  const i0 = Math.floor(i);
-  const t = i - i0;
-  if(i0 < 0 || i0+1 >= profile.alt.length) return null;
-  return profile.alt[i0]*(1-t) + profile.alt[i0+1]*t;
-}
-
-function autoAltRange(points){
-  let maxAlt = 0;
-  for(const p of points) maxAlt = Math.max(maxAlt, p.alt);
-  VIEW.altMin = -1;
-  VIEW.altMax = Math.max(10, Math.ceil(maxAlt + 3));
 }
 
 /* ============
@@ -561,10 +508,8 @@ function parseHHMM(s){
 function makeUtcDate(ymd, hhmm){
   return new Date(Date.UTC(ymd.y, ymd.mo - 1, ymd.d, hhmm.hh, hhmm.mm, 0));
 }
-  
-// ✅ AFEGEIX AQUI
+
 function astroTimeToDate(t){
-  // moltes builds tenen t.date; altres tenen t.toDate()
   if(!t) return null;
   if(t instanceof Date) return t;
   if(t.date instanceof Date) return t.date;
@@ -573,22 +518,12 @@ function astroTimeToDate(t){
 }
 function toAstroTime(x){
   if(!x) return null;
-
-  // wrapper típic d'events: { time: AstroTime }
   if (x.time && typeof x.time.ut === "number") return x.time;
-
-  // ja és AstroTime
   if (typeof x.ut === "number") return x;
-
-  // Date
   if (x instanceof Date) return Astronomy.MakeTime(x);
-
-  // wrapper amb .date (Date)
   if (x.date instanceof Date) return Astronomy.MakeTime(x.date);
-
   return null;
 }
-
 
 function buildRealSunPath(observerLat, observerLon, observerAltM, dateYMD, centerHHMM, minutesBefore=120, minutesAfter=120, stepSec=60){
   const obs = new Astronomy.Observer(observerLat, observerLon, observerAltM);
@@ -598,10 +533,8 @@ function buildRealSunPath(observerLat, observerLon, observerAltM, dateYMD, cente
   const endMs   = centerDate.getTime() + minutesAfter*60*1000;
 
   const pts = [];
-
   for(let tMs = startMs; tMs <= endMs; tMs += stepSec*1000){
     const time = Astronomy.MakeTime(new Date(tMs));
-
     const eq = Astronomy.Equator("Sun", time, obs, true, true);
     const hor = Astronomy.Horizon(time, obs, eq.ra, eq.dec, "normal");
 
@@ -613,20 +546,11 @@ function buildRealSunPath(observerLat, observerLon, observerAltM, dateYMD, cente
   }
   return pts;
 }
+
 function fmtHHMM(x){
   const t = toAstroTime(x);
   const d = astroTimeToDate(t);
   return d ? d.toISOString().slice(11,16) : "—";
-}
-
-function sunHorAtDateUTC(dateObj, obs){
-  const time = Astronomy.MakeTime(dateObj);
-  const eq = Astronomy.Equator("Sun", time, obs, true, true);
-  const hor = Astronomy.Horizon(time, obs, eq.ra, eq.dec, "normal"); // refracció "normal"
-  let az = hor.azimuth;
-  if(az < 0) az += 360;
-  if(az >= 360) az -= 360;
-  return { az, alt: hor.altitude, time };
 }
 
 function sunHorAtAstroTime(x, obs){
@@ -642,6 +566,7 @@ function sunHorAtAstroTime(x, obs){
 
   return { az, alt: hor.altitude, time: t };
 }
+
 function buildSunPathBetweenTimes(obs, tStart, tEnd, stepSec=60){
   const pts = [];
   if(!tStart || !tEnd) return pts;
@@ -667,61 +592,43 @@ function buildSunPathBetweenTimes(obs, tStart, tEnd, stepSec=60){
   return pts;
 }
 
-
-// construeix punts reals del Sol
+// ====== construeix punts reals del Sol ======
 const ymd = parseDateYMD(PARAMS.date) || {y:2026, mo:8, d:12};
 const hhmm = parseHHMM(PARAMS.centerUtc) || {hh:18, mm:30};
 
 const OBS = new Astronomy.Observer(PARAMS.lat, PARAMS.lon, PARAMS.alt);
 
-// Data base (00:00 UTC del dia)
 const dayStartUTC = new Date(Date.UTC(ymd.y, ymd.mo - 1, ymd.d, 0, 0, 0));
-// const dayStartTime = Astronomy.MakeTime(dayStartUTC);  // ja no cal per aquesta crida
-
 const ECL = Astronomy.SearchLocalSolarEclipse(dayStartUTC, OBS);
 
 const dayMidUTC  = new Date(Date.UTC(ymd.y, ymd.mo - 1, ymd.d, 12, 0, 0));
-// const dayMidTime = Astronomy.MakeTime(dayMidUTC);      // ja no cal per aquesta crida
-
 const sunSetTime = Astronomy.SearchAltitude("Sun", OBS, -1, dayMidUTC, 1, -0.833);
 
-
-// 3) Punts del camí del Sol (com ja feies)
-// --- Camí del Sol: des de C1 fins a la posta (horitzó marí) ---
-const tC1 = (ECL && ECL.partial_begin && ECL.partial_begin.time) ? ECL.partial_begin.time : null;
+// Tram C1 → Posta (mar)
+const tC1  = (ECL && ECL.partial_begin && ECL.partial_begin.time) ? ECL.partial_begin.time : null;
 const tSet = (sunSetTime && sunSetTime.time) ? sunSetTime.time : null;
 
-// fallback si per qualque motiu no hi ha C1/posta
 const tStart = tC1 || Astronomy.MakeTime(makeUtcDate(ymd, hhmm));
 const tEnd   = tSet || Astronomy.MakeTime(makeUtcDate(ymd, {hh:23, mm:59}));
 
 let sunPts = buildSunPathBetweenTimes(OBS, tStart, tEnd, 60);
-  // ✅ Fallback si per qualque motiu no hem pogut construir el tram C1→posta
+
 if (!Array.isArray(sunPts) || sunPts.length < 2) {
   console.warn("sunPts buit; faig fallback ±4h al voltant del centerUtc");
   sunPts = buildRealSunPath(PARAMS.lat, PARAMS.lon, PARAMS.alt, ymd, hhmm, 240, 240, 60);
 }
 
-
-// rang d'altitud: de 0° fins el màxim del tram + una mica
-let maxAltSeg = 0;
-for (const p of sunPts) if (Number.isFinite(p.alt)) maxAltSeg = Math.max(maxAltSeg, p.alt);
-
-VIEW.altMin = 0;
-VIEW.altMax = Math.max(5, Math.ceil(maxAltSeg + 1));
-
-// ✅ RANG ALTITUD: de 0° fins C1 + 1°
+// ✅ Rang ALT (tu el tens com C1+1, el deix igual)
 const c1Pt = (ECL && ECL.partial_begin && ECL.partial_begin.time)
   ? sunHorAtAstroTime(ECL.partial_begin.time, OBS)
   : null;
 
-// si per qualque motiu no hi ha C1, usam el punt central com a referència
 const refAlt = (c1Pt && Number.isFinite(c1Pt.alt))
   ? c1Pt.alt
   : sunPts[Math.floor(sunPts.length/2)].alt;
 
 VIEW.altMin = 0;
-VIEW.altMax = Math.max(5, Math.ceil(refAlt + 1));   // +1 grau “abans”
+VIEW.altMax = Math.max(5, Math.ceil(refAlt + 1));
 
 const peakPt = (ECL && ECL.peak && ECL.peak.time)
   ? sunHorAtAstroTime(ECL.peak.time, OBS)
@@ -732,104 +639,56 @@ const sunAtCenter = peakPt || sunPts[Math.floor(sunPts.length/2)];
 const MARKS = [];
 console.log("sunAtCenter", sunAtCenter);
 
-
 // C1
 if(ECL && ECL.partial_begin && ECL.partial_begin.time){
   const p = sunHorAtAstroTime(ECL.partial_begin.time, OBS);
   if(p) MARKS.push({ ...p, label: `C1 ${fmtHHMM(ECL.partial_begin.time)}`, color: "rgba(255,200,0,0.95)" });
 }
-
 // Màxim
 if(ECL && ECL.peak && ECL.peak.time){
   const p = sunHorAtAstroTime(ECL.peak.time, OBS);
   if(p) MARKS.push({ ...p, label: `Màxim ${fmtHHMM(ECL.peak.time)}`, color: "rgba(0,200,255,0.95)" });
 }
-
 // Posta
 if (sunSetTime && sunSetTime.time) {
   const p = sunHorAtAstroTime(sunSetTime.time, OBS);
   if (p) {
-    MARKS.push({
-      ...p,
-      label: `Posta ${fmtHHMM(sunSetTime.time)}`,
-      color: "rgba(255,120,120,0.95)"
-    });
+    MARKS.push({ ...p, label: `Posta ${fmtHHMM(sunSetTime.time)}`, color: "rgba(255,120,120,0.95)" });
   }
 }
 
-
-/* ============
-   PERFIL: fetch + fallback
-   ============ */
-const profileFallback = (() => {
-  const az0 = 220, daz = 0.2;
-  const n = Math.round((300-220)/daz)+1;
-  const alt = new Array(n).fill(0).map((_,i)=>{
-    const az = az0 + i*daz;
-    const peak = 6 * Math.exp(-0.5*Math.pow((az-262)/6,2));
-    return 0.6 + 0.4*Math.sin((az-220)/8) + peak;
-  });
-  return {az0,daz,alt};
-})();
-
-async function loadProfile(){
-  const url = "./data/horizon_profiles/perfil_demo.json";
-  const r = await fetch(url, {cache:"no-store"});
-  if(!r.ok) throw new Error("HTTP " + r.status);
-  const j = await r.json();
-  console.log("RAW JSON", j, "alt.length=", j?.alt?.length, "daz=", j?.daz);
-  return j;
-}
-
-function normalizeProfile(p){
-  if(!p || typeof p !== "object") return null;
-
-  const az0 = Number(p.az0 ?? p.azMin);
-  const daz = Number(p.daz);
-  const alt = Array.isArray(p.alt) ? p.alt : (Array.isArray(p.altitudes) ? p.altitudes : null);
-
-  if(Number.isFinite(az0) && Number.isFinite(daz) && alt) {
-    return { az0, daz, alt };
-  }
-  return null;
-}
-// ✅ RANG AZIMUT: de (C1 - 1°) fins (posta + 1°)
+// ✅ CHANGE: BASE_AZ FIX = C1 → Posta (NO min/max de sunPts)
 const sunSetPt = (sunSetTime && sunSetTime.time)
   ? sunHorAtAstroTime(sunSetTime.time, OBS)
   : null;
-// === AZIMUTS CLAU PER AL LAYOUT ===
-C1_AZ   = (c1Pt   && Number.isFinite(c1Pt.az))   ? c1Pt.az   : null;
+
+C1_AZ   = (c1Pt && Number.isFinite(c1Pt.az)) ? c1Pt.az : null;
 PEAK_AZ = (peakPt && Number.isFinite(peakPt.az)) ? peakPt.az : null;
 SET_AZ  = (sunSetPt && Number.isFinite(sunSetPt.az)) ? sunSetPt.az : null;
 
-// ✅ BASE_AZ a partir del camí del Sol real (evita NaN)
-let minAz = +Infinity, maxAz = -Infinity;
-for (const p of sunPts) {
-  if (!p || !Number.isFinite(p.az)) continue;
-  minAz = Math.min(minAz, p.az);
-  maxAz = Math.max(maxAz, p.az);
+// marge per veure una mica abans/després
+const MARGIN_AZ = 1.0;
+
+let AZ_MIN = (C1_AZ != null) ? (C1_AZ - MARGIN_AZ) : 220;
+let AZ_MAX = (SET_AZ != null) ? (SET_AZ + MARGIN_AZ) : 300;
+
+// seguretat
+if (!Number.isFinite(AZ_MIN) || !Number.isFinite(AZ_MAX) || (AZ_MAX - AZ_MIN) < 5) {
+  AZ_MIN = 220; AZ_MAX = 300;
 }
 
-// si per qualsevol cosa encara és infinit, fallback a un rang raonable
-if (!Number.isFinite(minAz) || !Number.isFinite(maxAz)) {
-  minAz = 220;
-  maxAz = 300;
+// IMPORTANT: no clamp a 0..360 aquí; perquè en aquest cas l'az és ~287 i tot és “normal”.
+BASE_AZ = { min: AZ_MIN, max: AZ_MAX };
+
+// seguretat camp massa estret
+if ((BASE_AZ.max - BASE_AZ.min) < 10) {
+  const mid = (BASE_AZ.min + BASE_AZ.max) / 2;
+  BASE_AZ.min = mid - 5;
+  BASE_AZ.max = mid + 5;
 }
 
-VIEW.azMin = Math.floor(minAz - 1);
-VIEW.azMax = Math.ceil(maxAz + 1);
-
-BASE_AZ = { min: VIEW.azMin, max: VIEW.azMax };
-
-
-// seguretat: evita un camp massa estret
-if (VIEW.azMax - VIEW.azMin < 10) {
-  const mid = (VIEW.azMin + VIEW.azMax) / 2;
-  VIEW.azMin = Math.floor(mid - 5);
-  VIEW.azMax = Math.ceil(mid + 5);
-}
+// ===== HUD tiles =====
 let __hudReqId = 0;
-
 async function updateHudFromTiles(){
   if(!sunAtCenter) return;
 
@@ -840,8 +699,6 @@ async function updateHudFromTiles(){
     const alt = sunAtCenter.alt;
 
     const v = await evaluateVisibility(PARAMS.lat, PARAMS.lon, az, alt);
-
-    // si ha entrat una crida nova, ignoram aquesta
     if(reqId !== __hudReqId) return;
 
     const SUN_R_DEG = 0.266;
@@ -859,12 +716,9 @@ async function updateHudFromTiles(){
       hzTxt = hHor.toFixed(2);
       dTxt  = delta.toFixed(2);
 
-      if (delta >= SUN_R_DEG) {
-        status = "✅ Visible (100%)";
-      } else if (delta <= -SUN_R_DEG) {
-        status = "❌ Tapat (0%)";
-      } else {
-        // parcial: fracció visible del disc (segment circular)
+      if (delta >= SUN_R_DEG) status = "✅ Visible (100%)";
+      else if (delta <= -SUN_R_DEG) status = "❌ Tapat (0%)";
+      else {
         const d = delta;
         const R = SUN_R_DEG;
         const A = R*R * Math.acos(-d/R) + d * Math.sqrt(Math.max(0, R*R - d*d));
@@ -878,7 +732,6 @@ async function updateHudFromTiles(){
       `Az ${az.toFixed(1)}° · Sol ${alt.toFixed(2)}° · Horitzó ${hzTxt}° · Δ ${dTxt}° · ${status}`;
 
   }catch(e){
-    // si falla el tile, no rompem el visor
     if(reqId !== __hudReqId) return;
     hud.textContent = `Error tiles: ${e.message || e}`;
   }
@@ -887,59 +740,51 @@ async function updateHudFromTiles(){
 /* ============
    RENDER
    ============ */
-
 function render(){
-  if (!BASE_AZ) return;   // ✅ aquí sí
+  if (!BASE_AZ) return;
+
   const {w:W,h:H} = resizeCanvas();
   ctx.clearRect(0,0,W,H);
 
   ctx.fillStyle = "#111";
   ctx.fillRect(0,0,W,H);
-  
-// === 1) FINESTRA FIXA: C1 → Posta (mar) ===
-const availW = W - VIEW.padding.l - VIEW.padding.r;
-const availH = H - VIEW.padding.t - VIEW.padding.b;
 
-const altSpan = (VIEW.altMax - VIEW.altMin);
+  const availW = W - VIEW.padding.l - VIEW.padding.r;
+  const availH = H - VIEW.padding.t - VIEW.padding.b;
 
-// agafa sempre el rang “gran” calculat (C1 - 1 fins posta + 1)
-VIEW.azMin = BASE_AZ.min;
-VIEW.azMax = BASE_AZ.max;
+  const altSpan = (VIEW.altMax - VIEW.altMin);
 
-// === 2) Rectangle de dibuix amb escala 1:1 (1°X = 1°Y) ===
-const azSpan = (VIEW.azMax - VIEW.azMin);
+  // ✅ finestra fixa C1→Posta (mar)
+  VIEW.azMin = BASE_AZ.min;
+  VIEW.azMax = BASE_AZ.max;
 
-// px/deg real: el limita el costat més restrictiu (aquí ja hem triat span per omplir mòbil,
-// però si hem ampliat span per incloure posta/màxim, pot passar a limitar l'ample)
-const pxPerDeg = Math.min(availW / azSpan, availH / altSpan);
+  const azSpan = (VIEW.azMax - VIEW.azMin);
 
-const realPlotW = pxPerDeg * azSpan;
-const realPlotH = pxPerDeg * altSpan;
+  const pxPerDeg = Math.min(availW / azSpan, availH / altSpan);
 
-const extraX = (availW - realPlotW) / 2;
-const extraY = (availH - realPlotH) / 2;
+  const realPlotW = pxPerDeg * azSpan;
+  const realPlotH = pxPerDeg * altSpan;
 
-PLOT = {
-  x0: VIEW.padding.l + extraX,
-  x1: VIEW.padding.l + extraX + realPlotW,
-  y1: VIEW.padding.t + extraY,
-  y0: VIEW.padding.t + extraY + realPlotH
-};
+  const extraX = (availW - realPlotW) / 2;
+  const extraY = (availH - realPlotH) / 2;
 
-console.log("VIEW az", VIEW.azMin, VIEW.azMax, "alt", VIEW.altMin, VIEW.altMax, "sunPts", sunPts.length);
-drawGrid(W,H);
-drawSeaLevel();
-drawHorizon(W,H, CURRENT_PROFILE);
-drawSunPath(W,H, sunPts, VIEW.colSunPath);
-drawSunDiscs(W, H, MARKS);
+  PLOT = {
+    x0: VIEW.padding.l + extraX,
+    x1: VIEW.padding.l + extraX + realPlotW,
+    y1: VIEW.padding.t + extraY,
+    y0: VIEW.padding.t + extraY + realPlotH
+  };
 
-  if(sunAtCenter){
-    // Actualitza HUD des dels tiles (async, sense bloquejar render)
-    updateHudFromTiles();
-  } else {
-    hud.textContent = "Carregant…";
-  }
+  console.log("VIEW az", VIEW.azMin, VIEW.azMax, "alt", VIEW.altMin, VIEW.altMax, "sunPts", sunPts.length);
 
+  drawGrid(W,H);
+  drawSeaLevel();
+  drawHorizon(W,H, CURRENT_PROFILE);
+  drawSunPath(W,H, sunPts, VIEW.colSunPath);
+  drawSunDiscs(W, H, MARKS);
+
+  if(sunAtCenter) updateHudFromTiles();
+  else hud.textContent = "Carregant…";
 }
 
 window.addEventListener("resize", render);
@@ -948,22 +793,15 @@ window.addEventListener("resize", render);
   try{
     hud.textContent = "Carregant horitzó real (tiles)…";
 
-    // rang que ja tens definit a VIEW (ja el recalcules amb C1/posta)
-    // 🔒 Rang REAL disponible de tiles (ajusta si cal)
-const TILE_AZ_MIN = 286.7;
-const TILE_AZ_MAX = 288.0;
+    const TILE_AZ_MIN = 286.7;
+    const TILE_AZ_MAX = 288.0;
 
-// Centram el perfil al voltant de l'azimut del Sol
-const margin = 0.5; // graus a cada costat (pots posar 0.3, 0.5, 1.0…)
+    const margin = 0.5;
+    const azCenter = sunAtCenter.az;
 
-const azCenter = sunAtCenter.az;
+    const azMin = Math.max(TILE_AZ_MIN, azCenter - margin);
+    const azMax = Math.min(TILE_AZ_MAX, azCenter + margin);
 
-const azMin = Math.max(TILE_AZ_MIN, azCenter - margin);
-const azMax = Math.min(TILE_AZ_MAX, azCenter + margin);
-
-    // IMPORTANT:
-    // - si tens tiles cada 0.1°, posa 0.1
-    // - si vols reduir càrrega, posa 0.2 (dibuxa igual de bé per pantalla)
     const daz = 0.1;
 
     CURRENT_PROFILE = await buildHorizonProfileFromTiles(
@@ -978,20 +816,20 @@ const azMax = Math.min(TILE_AZ_MAX, azCenter + margin);
         }
       }
     );
-    
+
   }catch(e){
     console.warn("Error carregant horitzó real", e);
     CURRENT_PROFILE = null;
     hud.textContent = `Error horitzó real: ${e.message || e}`;
   }
-if (CURRENT_PROFILE && Array.isArray(CURRENT_PROFILE.alt)) {
-  CURRENT_PROFILE.alt = fillGapsLinear(CURRENT_PROFILE.alt);
-}
+
+  // ✅ CHANGE: NO interpolar (no inventam). Si vols interpolar, descomenta:
+  // if (CURRENT_PROFILE && Array.isArray(CURRENT_PROFILE.alt)) {
+  //   CURRENT_PROFILE.alt = fillGapsLinear(CURRENT_PROFILE.alt);
+  // }
 
   render();
 })();
-
-
 </script>
 
 <script>
@@ -1003,4 +841,3 @@ if ("serviceWorker" in navigator) {
 </script>
 </body>
 </html>
-
