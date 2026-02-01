@@ -765,15 +765,40 @@ function render(){
   const realPlotW = pxPerDeg * azSpan;
   const realPlotH = pxPerDeg * altSpan;
 
-  const extraX = (availW - realPlotW) / 2;
-  const extraY = (availH - realPlotH) / 2;
+const extraY = (availH - realPlotH) / 2;
 
-  PLOT = {
-    x0: VIEW.padding.l + extraX,
-    x1: VIEW.padding.l + extraX + realPlotW,
-    y1: VIEW.padding.t + extraY,
-    y0: VIEW.padding.t + extraY + realPlotH
-  };
+// ✅ NEW: col·locació en X perquè:
+// dist(C1, esquerra) == dist(Posta, dreta), sense deformar (només translate)
+let x0 = VIEW.padding.l + (availW - realPlotW) / 2; // fallback centrat
+
+if (Number.isFinite(C1_AZ) && Number.isFinite(SET_AZ)) {
+  const azSpan = (VIEW.azMax - VIEW.azMin);
+
+  const uC = (C1_AZ  - VIEW.azMin) / azSpan; // 0..1 dins la finestra
+  const uS = (SET_AZ - VIEW.azMin) / azSpan;
+
+  const padL = VIEW.padding.l;
+  const padR = VIEW.padding.r;
+
+  // Solució exacta de:
+  // (x(C1)-padL) == ((W-padR)-x(SET))
+  // x(C1)=x0 + uC*realPlotW
+  // x(SET)=x0 + uS*realPlotW
+  x0 = ((W - padR) + padL - (uC + uS) * realPlotW) / 2;
+
+  // ✅ seguretat: que el plot no surti fora pantalla
+  // (si això passa és perquè la finestra és massa ampla pel plotW)
+  const minX0 = padL;
+  const maxX0 = W - padR - realPlotW;
+  x0 = Math.max(minX0, Math.min(maxX0, x0));
+}
+
+PLOT = {
+  x0,
+  x1: x0 + realPlotW,
+  y1: VIEW.padding.t + extraY,
+  y0: VIEW.padding.t + extraY + realPlotH
+};
 
   console.log("VIEW az", VIEW.azMin, VIEW.azMax, "alt", VIEW.altMin, VIEW.altMax, "sunPts", sunPts.length);
 
