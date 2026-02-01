@@ -242,6 +242,42 @@
 
     return { ...r, altSol: altSolDeg, visible, delta };
   }
+    // Omple NaNs interns amb interpolació lineal (NO extrapola extrems)
+  function fillGapsLinear(arr){
+    const out = arr.slice();
+    const n = out.length;
+
+    let i = 0;
+    while(i < n){
+      if(Number.isFinite(out[i])) { i++; continue; }
+
+      // trobam inici del gap
+      const gapStart = i;
+
+      // cercam el final del gap (primer finite després del gap)
+      while(i < n && !Number.isFinite(out[i])) i++;
+      const gapEnd = i - 1;
+
+      const left = gapStart - 1;
+      const right = i; // primer finite després del gap (o n)
+
+      // només interpolam si tenim valor a banda i banda
+      if(left >= 0 && right < n && Number.isFinite(out[left]) && Number.isFinite(out[right])){
+        const v0 = out[left];
+        const v1 = out[right];
+        const span = right - left;
+
+        for(let k = gapStart; k <= gapEnd; k++){
+          const t = (k - left) / span;   // 0..1
+          out[k] = v0 + (v1 - v0) * t;
+        }
+      }
+      // si el gap és a l’inici o al final, el deixam com NaN (no inventam)
+    }
+
+    return out;
+  }
+
 </script>
 
 <script src="js/astronomy.browser.min.js"></script>
@@ -876,9 +912,9 @@ window.addEventListener("resize", render);
   }
 
   // ✅ CHANGE: NO interpolar (no inventam). Si vols interpolar, descomenta:
-  // if (CURRENT_PROFILE && Array.isArray(CURRENT_PROFILE.alt)) {
-  //   CURRENT_PROFILE.alt = fillGapsLinear(CURRENT_PROFILE.alt);
-  // }
+   if (CURRENT_PROFILE && Array.isArray(CURRENT_PROFILE.alt)) {
+     CURRENT_PROFILE.alt = fillGapsLinear(CURRENT_PROFILE.alt);
+   }
 
   render();
 })();
