@@ -6,6 +6,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Visor Horitzó</title>
+  <link rel="icon" href="data:,">
 
   <meta name="theme-color" content="#000000">
 
@@ -313,7 +314,7 @@ let PLOT = null;
 let C1_AZ = null;
 let PEAK_AZ = null;
 let SET_AZ = null;
-  let SEA_SET_AZ = null;
+let SEA_SET_AZ = null;
 
 
 /* ============
@@ -702,8 +703,8 @@ SET_AZ  = (sunSetPt && Number.isFinite(sunSetPt.az)) ? sunSetPt.az : null;
 // marge per veure una mica abans/després
 const MARGIN_LAYOUT_AZ = 1.0;
 
-let AZ_MIN = (C1_AZ != null) ? (C1_AZ - MARGIN_AZ) : 220;
-let AZ_MAX = (SET_AZ != null) ? (SET_AZ + MARGIN_AZ) : 300;
+let AZ_MIN = (C1_AZ != null) ? (C1_AZ - MARGIN_LAYOUT_AZ) : 220;
+let AZ_MAX = (SET_AZ != null) ? (SET_AZ + MARGIN_LAYOUT_AZ) : 300;
 
 // seguretat
 if (!Number.isFinite(AZ_MIN) || !Number.isFinite(AZ_MAX) || (AZ_MAX - AZ_MIN) < 5) {
@@ -796,7 +797,7 @@ const rightAz = (Number.isFinite(SEA_SET_AZ) ? SEA_SET_AZ : (Number.isFinite(SET
 const midAz = (leftAz + rightAz) / 2;
 
 // marge en graus extra a cada costat (si vols més “aire”, puja-ho)
-const MARGIN_AZ = 1.0;
+const MARGIN_LAYOUT_AZ = 1.0;
 
 // amplada mínima en graus perquè càpiguen els punts + marges
 const needAzSpan = Math.abs(rightAz - leftAz) + 2*MARGIN_LAYOUT_AZ;
