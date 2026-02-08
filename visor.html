@@ -129,7 +129,7 @@
     if (a < 0) a += 360;
     const k = Math.round(a / step) * step;
     const kk = Math.round(k * 10) / 10; // neteja floats
-    return "az" + String(kk).replace(".", "_");
+        return "az" + kk.toFixed(1).replace(".", "_");
   }
 
   async function resolveTifPath(lat, lon, azDeg, ds){
