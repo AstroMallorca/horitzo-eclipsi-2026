@@ -936,13 +936,18 @@ window.addEventListener("resize", render);
     const TILE_AZ_MAX = 300.0;
 
 
-    const margin = 0.0;
-    const azCenter = sunAtCenter.az;
+    // Rang dinàmic: C1 -> posta (mar). I clamped als tiles disponibles.
+    const margin = 0.0; // si vols aire visual, puja a 0.5 o 1.0
 
-    const azMin = Math.max(TILE_AZ_MIN, azCenter - margin);
-    const azMax = Math.min(TILE_AZ_MAX, azCenter + margin);
+    // BASE_AZ ja està calculat més amunt com C1->posta (+ marge)
+    const dynMin = (BASE_AZ && Number.isFinite(BASE_AZ.min)) ? BASE_AZ.min : TILE_AZ_MIN;
+    const dynMax = (BASE_AZ && Number.isFinite(BASE_AZ.max)) ? BASE_AZ.max : TILE_AZ_MAX;
+
+    const azMin = Math.max(TILE_AZ_MIN, dynMin - margin);
+    const azMax = Math.min(TILE_AZ_MAX, dynMax + margin);
 
     const daz = 0.1;
+
 
     CURRENT_PROFILE = await buildHorizonProfileFromTiles(
       PARAMS.lat, PARAMS.lon,
