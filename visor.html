@@ -69,14 +69,19 @@
     "+proj=utm +zone=31 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs"
   );
 
-  let META = null;
+  // Metas per dataset (MDT05 i MDT25)
+  const __META = new Map(); // baseDir -> meta
 
-  async function loadMeta() {
-    if (META) return META;
-    const r = await fetch("./data/tiles/meta.json", { cache: "no-store" });
-    if (!r.ok) throw new Error("No puc llegir ./data/tiles/meta.json");
-    META = await r.json();
-    return META;
+  async function loadMetaFor(baseDir){
+    if (__META.has(baseDir)) return __META.get(baseDir);
+
+    const url = `${baseDir}/meta.json`;
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) throw new Error(`No puc llegir ${url}`);
+
+    const meta = await r.json();
+    __META.set(baseDir, meta);
+    return meta;
   }
 
   // lat/lon (WGS84) -> (E,N) en metres (EPSG:25831)
@@ -86,14 +91,14 @@
   }
 
   // (E,N) -> tileX,tileY
-  async function latLonToTile(lat, lon) {
-    const meta = await loadMeta();
+  async function latLonToTile(lat, lon, baseDir="./data/tiles") {
+    const meta = await loadMetaFor(baseDir);
 
-    const tileSize = meta.tile_size_m;             // 10000
-    const xmin = meta.tile_grid.origin_xmin;       // 330000
-    const ymax = meta.tile_grid.origin_ymax;       // 4470000
-    const nx = meta.tile_grid.nx;                  // 30
-    const ny = meta.tile_grid.ny;                  // 23
+    const tileSize = meta.tile_size_m;
+    const xmin = meta.tile_grid.origin_xmin;
+    const ymax = meta.tile_grid.origin_ymax;
+    const nx = meta.tile_grid.nx;
+    const ny = meta.tile_grid.ny;
 
     const { E, N } = lonLatToEN(lon, lat);
 
@@ -115,10 +120,22 @@
     const a01 = Math.round(a * 10) / 10;
     return "az" + String(a01).replace(".", "_");
   }
-  async function resolveTifPath(lat, lon, azDeg){
-    const { tileX, tileY } = await latLonToTile(lat, lon);
-    const azKey = azToBucket(azDeg);
-    const tif = `./data/tiles/out_deflate/${azKey}/${tileFilename(tileX, tileY)}`;
+    // Datasets: MDT05 (precís) i MDT25 (farcit)
+  const DS05 = { base: "./data/tiles", step: 0.1 };      // existent
+  const DS25 = { base: "./data/tiles_mdt25", step: 1.0 };// nou
+
+  function azToBucketStep(azDeg, step){
+    let a = azDeg % 360;
+    if (a < 0) a += 360;
+    const k = Math.round(a / step) * step;
+    const kk = Math.round(k * 10) / 10; // neteja floats
+    return "az" + String(kk).replace(".", "_");
+  }
+
+  async function resolveTifPath(lat, lon, azDeg, ds){
+    const { tileX, tileY } = await latLonToTile(lat, lon, ds.base);
+    const azKey = azToBucketStep(azDeg, ds.step);
+    const tif = `${ds.base}/out_deflate/${azKey}/${tileFilename(tileX, tileY)}`;
     return { azKey, tileX, tileY, tif };
   }
 
@@ -161,11 +178,11 @@
   }
 
   // Llegeix el valor h_crit per lat/lon/az
-  async function getHCrit(lat, lon, azDeg){
-    const meta = await loadMeta();
+  async function getHCritFromDataset(lat, lon, azDeg, ds){
+    const meta = await loadMetaFor(ds.base);
     const { E, N } = lonLatToEN(lon, lat);
 
-    const { tileX, tileY, tif } = await resolveTifPath(lat, lon, azDeg);
+    const { tileX, tileY, tif } = await resolveTifPath(lat, lon, azDeg, ds);
     const { col, row, inTile } = enToPixelInTile(E, N, meta, tileX, tileY);
 
     if (!inTile) throw new Error(`Punt fora del tile: col=${col}, row=${row}`);
@@ -180,8 +197,41 @@
     });
 
     const v = rasters[0];
-    return { h_crit: v, tileX, tileY, col, row, tif };
+    return { h_crit: v, tileX, tileY, col, row, tif, ds: ds.base };
   }
+
+  // Híbrid:
+  // 1) prova MDT05 (si hi ha tile/az) i
+  // 2) si no, usa MDT25 i interpola entre graus enters (gap petit) per suavitzar el perfil.
+  async function getHCrit(lat, lon, azDeg){
+    // ✅ MDT05 primer (precís)
+    try{
+      return await getHCritFromDataset(lat, lon, azDeg, DS05);
+    }catch(e05){
+      // fallback MDT25
+    }
+
+    // ✅ MDT25: interpola entre floor/ceil (màxim 1°)
+    const a0 = Math.floor(azDeg);
+    const a1 = Math.ceil(azDeg);
+
+    if (a0 === a1){
+      return await getHCritFromDataset(lat, lon, a0, DS25);
+    }
+
+    const r0 = await getHCritFromDataset(lat, lon, a0, DS25);
+    const r1 = await getHCritFromDataset(lat, lon, a1, DS25);
+
+    if (!Number.isFinite(r0.h_crit) || !Number.isFinite(r1.h_crit)){
+      return { ...r0, h_crit: NaN };
+    }
+
+    const t = (azDeg - a0) / (a1 - a0); // 0..1
+    const h = r0.h_crit + (r1.h_crit - r0.h_crit) * t;
+
+    return { ...r0, h_crit: h, interp: true };
+  }
+
 
   async function buildHorizonProfileFromTiles(lat, lon, azMin, azMax, daz=0.1, opts={}){
     const {
@@ -243,7 +293,7 @@
     return { ...r, altSol: altSolDeg, visible, delta };
   }
     // Omple NaNs interns amb interpolació lineal (NO extrapola extrems)
-  function fillGapsLinear(arr){
+    function fillGapsLinear(arr, maxGapSamples=15){
     const out = arr.slice();
     const n = out.length;
 
@@ -262,7 +312,8 @@
       const right = i; // primer finite després del gap (o n)
 
       // només interpolam si tenim valor a banda i banda
-      if(left >= 0 && right < n && Number.isFinite(out[left]) && Number.isFinite(out[right])){
+           const gapLen = right - left - 1;
+      if(gapLen > 0 && gapLen <= maxGapSamples && left >= 0 && right < n && Number.isFinite(out[left]) && Number.isFinite(out[right])){
         const v0 = out[left];
         const v1 = out[right];
         const span = right - left;
@@ -881,10 +932,11 @@ window.addEventListener("resize", render);
   try{
     hud.textContent = "Carregant horitzó real (tiles)…";
 
-    const TILE_AZ_MIN = 286.7;
-    const TILE_AZ_MAX = 288.0;
+       const TILE_AZ_MIN = 260.0;
+    const TILE_AZ_MAX = 300.0;
 
-    const margin = 0.5;
+
+    const margin = 0.0;
     const azCenter = sunAtCenter.az;
 
     const azMin = Math.max(TILE_AZ_MIN, azCenter - margin);
@@ -913,7 +965,7 @@ window.addEventListener("resize", render);
 
   // ✅ CHANGE: NO interpolar (no inventam). Si vols interpolar, descomenta:
    if (CURRENT_PROFILE && Array.isArray(CURRENT_PROFILE.alt)) {
-     CURRENT_PROFILE.alt = fillGapsLinear(CURRENT_PROFILE.alt);
+     CURRENT_PROFILE.alt = fillGapsLinear(CURRENT_PROFILE.alt, 15); // <= 1.5°
    }
 
   render();
