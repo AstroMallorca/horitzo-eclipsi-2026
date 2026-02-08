@@ -126,6 +126,9 @@ console.error("🚨 VISOR NOU CARREGAT");
     // Datasets: MDT05 (precís) i MDT25 (farcit)
   const DS05 = { base: "./data/tiles", step: 0.1 };      // existent
   const DS25 = { base: "./data/tiles_mdt25", step: 1.0 };// nou
+  const DS05_AZ_MIN = 286.7;
+const DS05_AZ_MAX = 288.0;
+
 
   function azToBucketStep(azDeg, step){
     let a = azDeg % 360;
@@ -207,12 +210,14 @@ console.error("🚨 VISOR NOU CARREGAT");
   // 1) prova MDT05 (si hi ha tile/az) i
   // 2) si no, usa MDT25 i interpola entre graus enters (gap petit) per suavitzar el perfil.
   async function getHCrit(lat, lon, azDeg){
-    // ✅ MDT05 primer (precís)
-    try{
-      return await getHCritFromDataset(lat, lon, azDeg, DS05);
-    }catch(e05){
-      // fallback MDT25
-    }
+// ✅ MDT05 primer (precís) NOMÉS dins el rang que existeix
+if (azDeg >= DS05_AZ_MIN && azDeg <= DS05_AZ_MAX){
+  try{
+    return await getHCritFromDataset(lat, lon, azDeg, DS05);
+  }catch(e05){
+    // fallback MDT25
+  }
+}
 
     // ✅ MDT25: interpola entre floor/ceil (màxim 1°)
     const a0 = Math.floor(azDeg);
@@ -949,7 +954,7 @@ window.addEventListener("resize", render);
     const azMin = Math.max(TILE_AZ_MIN, dynMin - margin);
     const azMax = Math.min(TILE_AZ_MAX, dynMax + margin);
 
-    const daz = 0.1;
+    const daz = 1.0;
 
 
     CURRENT_PROFILE = await buildHorizonProfileFromTiles(
