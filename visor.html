@@ -216,25 +216,50 @@ async function getHCritFromDataset(lat, lon, azDeg, ds){
   const { E, N } = lonLatToEN(lon, lat);
 
   const { tileX, tileY, tif } = await resolveTifPath(lat, lon, azDeg, ds);
-
   const { img } = await loadTiff(tif);
 
-  // ✅ usa dimensions reals del GeoTIFF
-  const pxN = img.getWidth();                 // ex: MDT05=100, MDT25=40, etc.
-  const res = meta.tile_size_m / pxN;         // ex: 10000/40=250 m
+  // --- ✅ Pixel calc basat en el GeoTIFF real (no en suposicions del meta) ---
+  // Origin (x0,y0) = cantonada superior-esquerra del raster en coords del món (UTM)
+  // Resolution (rx,ry) = metres per píxel (ry sol venir negatiu)
+  const origin = (typeof img.getOrigin === "function") ? img.getOrigin() : null;
+  const reso   = (typeof img.getResolution === "function") ? img.getResolution() : null;
 
-  const xmin0 = meta.tile_grid.origin_xmin;
-  const ymax0 = meta.tile_grid.origin_ymax;
-  const tileSize = meta.tile_size_m;
+  let col, row, inTile;
 
-  const tileXmin = xmin0 + tileX * tileSize;
-  const tileYmax = ymax0 - tileY * tileSize;
+  if (origin && reso) {
+    const x0 = origin[0];
+    const y0 = origin[1];
+    const rx = reso[0];
+    const ry = reso[1];
 
-  const col = Math.floor((E - tileXmin) / res);
-  const row = Math.floor((tileYmax - N) / res);
+    const pxW = img.getWidth();
+    const pxH = img.getHeight();
 
-  const inTile = (col >= 0 && col < pxN && row >= 0 && row < pxN);
-  if (!inTile) throw new Error(`Punt fora del tile: col=${col}, row=${row}, pxN=${pxN}`);
+    col = Math.floor((E - x0) / rx);
+    row = Math.floor((y0 - N) / Math.abs(ry));
+
+    inTile = (col >= 0 && col < pxW && row >= 0 && row < pxH);
+    if (!inTile) {
+      throw new Error(`Punt fora del tile (GeoTIFF): col=${col}, row=${row}, px=${pxW}x${pxH}`);
+    }
+  } else {
+    // Fallback: si per qualque motiu no hi ha origin/resolution, usam el mètode antic
+    const pxN = img.getWidth();
+    const res = meta.tile_size_m / pxN;
+
+    const xmin0 = meta.tile_grid.origin_xmin;
+    const ymax0 = meta.tile_grid.origin_ymax;
+    const tileSize = meta.tile_size_m;
+
+    const tileXmin = xmin0 + tileX * tileSize;
+    const tileYmax = ymax0 - tileY * tileSize;
+
+    col = Math.floor((E - tileXmin) / res);
+    row = Math.floor((tileYmax - N) / res);
+
+    inTile = (col >= 0 && col < pxN && row >= 0 && row < pxN);
+    if (!inTile) throw new Error(`Punt fora del tile (fallback): col=${col}, row=${row}, pxN=${pxN}`);
+  }
 
   const rasters = await img.readRasters({
     window: [col, row, col + 1, row + 1],
@@ -244,8 +269,9 @@ async function getHCritFromDataset(lat, lon, azDeg, ds){
   });
 
   const v = sanitizeHCrit(rasters[0]);
-  return { h_crit: v, tileX, tileY, col, row, tif, ds: ds.base, pxN, res };
+  return { h_crit: v, tileX, tileY, col, row, tif, ds: ds.base };
 }
+
 async function getHCrit25Only(lat, lon, azDeg){
   // força MDT25 i NO silencia errors
   const a0 = Math.floor(azDeg);
