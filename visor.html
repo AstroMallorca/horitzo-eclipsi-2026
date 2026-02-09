@@ -270,13 +270,13 @@ async function getHCrit(lat, lon, azDeg){
         const i = idxs.shift();
         const az = az0 + i*daz;
 
-const r = await getHCrit(lat, lon, az);
-alt[i] = r.h_crit;
-
-}catch(e){
-  console.warn("MDT25 fail", {az, err: (e && e.message) ? e.message : String(e)});
-  alt[i] = null;
-}
+        try {
+          const r = await getHCrit(lat, lon, az);
+          alt[i] = r.h_crit;
+        } catch (e) {
+          console.warn("Tile fail", { az, err: (e && e.message) ? e.message : String(e) });
+          alt[i] = null;
+        }
 
         done++;
         if(onProgress) onProgress(done, n);
@@ -949,7 +949,7 @@ window.addEventListener("resize", render);
     hud.textContent = "Carregant horitzó real (tiles)…";
 
 const TILE_AZ_MIN = 260.0;
-const TILE_AZ_MAX = 300.0;
+const TILE_AZ_MAX = 299.0;
 const daz = 0.1;
 
 
