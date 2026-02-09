@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="ca">
 <head>
@@ -216,50 +217,25 @@ async function getHCritFromDataset(lat, lon, azDeg, ds){
   const { E, N } = lonLatToEN(lon, lat);
 
   const { tileX, tileY, tif } = await resolveTifPath(lat, lon, azDeg, ds);
+
   const { img } = await loadTiff(tif);
 
-  // --- ✅ Pixel calc basat en el GeoTIFF real (no en suposicions del meta) ---
-  // Origin (x0,y0) = cantonada superior-esquerra del raster en coords del món (UTM)
-  // Resolution (rx,ry) = metres per píxel (ry sol venir negatiu)
-  const origin = (typeof img.getOrigin === "function") ? img.getOrigin() : null;
-  const reso   = (typeof img.getResolution === "function") ? img.getResolution() : null;
+  // ✅ usa dimensions reals del GeoTIFF
+  const pxN = img.getWidth();                 // ex: MDT05=100, MDT25=40, etc.
+  const res = meta.tile_size_m / pxN;         // ex: 10000/40=250 m
 
-  let col, row, inTile;
+  const xmin0 = meta.tile_grid.origin_xmin;
+  const ymax0 = meta.tile_grid.origin_ymax;
+  const tileSize = meta.tile_size_m;
 
-  if (origin && reso) {
-    const x0 = origin[0];
-    const y0 = origin[1];
-    const rx = reso[0];
-    const ry = reso[1];
+  const tileXmin = xmin0 + tileX * tileSize;
+  const tileYmax = ymax0 - tileY * tileSize;
 
-    const pxW = img.getWidth();
-    const pxH = img.getHeight();
+  const col = Math.floor((E - tileXmin) / res);
+  const row = Math.floor((tileYmax - N) / res);
 
-    col = Math.floor((E - x0) / rx);
-    row = Math.floor((y0 - N) / Math.abs(ry));
-
-    inTile = (col >= 0 && col < pxW && row >= 0 && row < pxH);
-    if (!inTile) {
-      throw new Error(`Punt fora del tile (GeoTIFF): col=${col}, row=${row}, px=${pxW}x${pxH}`);
-    }
-  } else {
-    // Fallback: si per qualque motiu no hi ha origin/resolution, usam el mètode antic
-    const pxN = img.getWidth();
-    const res = meta.tile_size_m / pxN;
-
-    const xmin0 = meta.tile_grid.origin_xmin;
-    const ymax0 = meta.tile_grid.origin_ymax;
-    const tileSize = meta.tile_size_m;
-
-    const tileXmin = xmin0 + tileX * tileSize;
-    const tileYmax = ymax0 - tileY * tileSize;
-
-    col = Math.floor((E - tileXmin) / res);
-    row = Math.floor((tileYmax - N) / res);
-
-    inTile = (col >= 0 && col < pxN && row >= 0 && row < pxN);
-    if (!inTile) throw new Error(`Punt fora del tile (fallback): col=${col}, row=${row}, pxN=${pxN}`);
-  }
+  const inTile = (col >= 0 && col < pxN && row >= 0 && row < pxN);
+  if (!inTile) throw new Error(`Punt fora del tile: col=${col}, row=${row}, pxN=${pxN}`);
 
   const rasters = await img.readRasters({
     window: [col, row, col + 1, row + 1],
@@ -269,9 +245,8 @@ async function getHCritFromDataset(lat, lon, azDeg, ds){
   });
 
   const v = sanitizeHCrit(rasters[0]);
-  return { h_crit: v, tileX, tileY, col, row, tif, ds: ds.base };
+  return { h_crit: v, tileX, tileY, col, row, tif, ds: ds.base, pxN, res };
 }
-
 async function getHCrit25Only(lat, lon, azDeg){
   // força MDT25 i NO silencia errors
   const a0 = Math.floor(azDeg);
@@ -290,44 +265,12 @@ function inRange(a, r){ return a >= r.min && a < r.max; } // max exclòs per evi
 
 async function getHCrit(lat, lon, azDeg){
   // MDT05 (fi) només dins el seu rang
-    // MDT05 (fi) només dins el seu rang
   if (inRange(azDeg, R05)) {
-
-    // 1) Llegeix MDT05
-    const r05 = await getHCritFromDataset(lat, lon, azDeg, DS05);
-    let h05 = sanitizeHCrit(r05.h_crit);
-
-    // 2) Llegeix MDT25 (interpolat a 1º) per comparar i tenir "pla B"
-    const r25 = await getHCrit25Only(lat, lon, azDeg);
-    let h25 = sanitizeHCrit(r25.h_crit);
-
-    // (Opcional) si vols aplicar correcció d'altitud, aplica-la als dos igual
-    // if (Number.isFinite(h05)) h05 = applyObserverAltCorrection(h05, PARAMS.alt);
-    // if (Number.isFinite(h25)) h25 = applyObserverAltCorrection(h25, PARAMS.alt);
-
-    // 3) Si MDT05 és "boig" (diferència massa grossa), usam MDT25
-    const THRESH_DEG = 1.0;  // prova 1º; si cal puja a 1.5º
-    if (Number.isFinite(h05) && Number.isFinite(h25) && Math.abs(h05 - h25) > THRESH_DEG) {
-      console.warn("MDT05 vs MDT25 mismatch -> fallback MDT25", {
-        azDeg,
-        h05, h25,
-        diff: Math.abs(h05 - h25),
-        r05: { tif: r05.tif, tileX: r05.tileX, tileY: r05.tileY, col: r05.col, row: r05.row, pxN: r05.pxN, res: r05.res },
-        r25: { tif: r25.tif, tileX: r25.tileX, tileY: r25.tileY, col: r25.col, row: r25.row, pxN: r25.pxN, res: r25.res }
-      });
-      return { ...r25, h_crit: h25, used: "MDT25_fallback" };
-    }
-
-    // 4) Si MDT05 és NaN però MDT25 és bo, també fallback
-    if (!Number.isFinite(h05) && Number.isFinite(h25)) {
-      console.warn("MDT05 NaN -> fallback MDT25", { azDeg, r05: r05.tif, r25: r25.tif });
-      return { ...r25, h_crit: h25, used: "MDT25_fallback_nan05" };
-    }
-
-    // 5) Cas normal: MDT05
-    return { ...r05, h_crit: h05, used: "MDT05" };
+const r = await getHCritFromDataset(lat, lon, azDeg, DS05);
+let h = sanitizeHCrit(r.h_crit);
+if (Number.isFinite(h)) h = applyObserverAltCorrection(h, PARAMS.alt);
+return { ...r, h_crit: h };
   }
-
 
   // MDT25 a la resta (amb interpolació 1 grau)
   if (inRange(azDeg, R25_A) || inRange(azDeg, R25_B)) {
@@ -543,7 +486,8 @@ let C1_AZ = null;
 let PEAK_AZ = null;
 let SET_AZ = null;
 let SEA_SET_AZ = null;
-
+let SEA_SET_TIME = null; // Date (UTC) quan el Sol creua alt=0 (mar)
+let LOCAL_SET = null;    // { time: Date, az, alt, hCrit, delta }
 
 /* ============
    HELPERS
@@ -849,6 +793,57 @@ function findSeaLevelSetFromSunPts(points){
   return null;
 }
 
+
+// --- Posta real per horitzó (muntanyes): cercam quan alt(Sol) = h_crit(az)
+// Retorna { time: Date(UTC), az, alt, hCrit, delta } o null
+async function findLocalHorizonSetTime(obs, tStart, tEnd, coarseSec=180){
+  const d0 = astroTimeToDate(toAstroTime(tStart));
+  const d1 = astroTimeToDate(toAstroTime(tEnd));
+  if(!d0 || !d1) return null;
+
+  async function evalAtMs(tMs){
+    const time = Astronomy.MakeTime(new Date(tMs));
+    const eq = Astronomy.Equator("Sun", time, obs, true, true);
+    const hor = Astronomy.Horizon(time, obs, eq.ra, eq.dec, "normal");
+    let az = hor.azimuth; if(az < 0) az += 360; if(az >= 360) az -= 360;
+    const alt = hor.altitude;
+
+    const r = await getHCrit(PARAMS.lat, PARAMS.lon, az);
+    const hCrit = r.h_crit;
+
+    if(!Number.isFinite(alt) || !Number.isFinite(hCrit)) return { tMs, az, alt, hCrit, delta: NaN };
+    return { tMs, az, alt, hCrit, delta: alt - hCrit };
+  }
+
+  let prev = await evalAtMs(d0.getTime());
+  for(let tMs = d0.getTime() + coarseSec*1000; tMs <= d1.getTime(); tMs += coarseSec*1000){
+    const cur = await evalAtMs(tMs);
+
+    if(Number.isFinite(prev.delta) && Number.isFinite(cur.delta)){
+      if(prev.delta > 0 && cur.delta <= 0){
+        // refinar amb bisecció
+        let lo = prev, hi = cur;
+        for(let it=0; it<18; it++){
+          const midMs = Math.floor((lo.tMs + hi.tMs)/2);
+          const mid = await evalAtMs(midMs);
+          if(!Number.isFinite(mid.delta)) break;
+
+          if(mid.delta > 0) lo = mid;
+          else hi = mid;
+
+          if((hi.tMs - lo.tMs) <= 1500) break;
+        }
+        const out = (hi && hi.delta <= 0) ? hi : cur;
+        return { time: new Date(out.tMs), az: out.az, alt: out.alt, hCrit: out.hCrit, delta: out.delta };
+      }
+    }
+
+    prev = cur;
+  }
+
+  return null;
+}
+
 // ====== construeix punts reals del Sol ======
 const ymd = parseDateYMD(PARAMS.date) || {y:2026, mo:8, d:12};
 const hhmm = parseHHMM(PARAMS.centerUtc) || {hh:18, mm:30};
@@ -861,12 +856,13 @@ const ECL = Astronomy.SearchLocalSolarEclipse(dayStartUTC, OBS);
 const dayMidUTC  = new Date(Date.UTC(ymd.y, ymd.mo - 1, ymd.d, 12, 0, 0));
 const sunSetTime = Astronomy.SearchAltitude("Sun", OBS, -1, dayMidUTC, 1, -0.833);
 
-// Tram C1 → Posta (mar)
-const tC1  = (ECL && ECL.partial_begin && ECL.partial_begin.time) ? ECL.partial_begin.time : null;
-const tSet = (sunSetTime && sunSetTime.time) ? sunSetTime.time : null;
+// Tram MÀXIM → Posta (mar). Si no hi ha màxim, usam C1; si tampoc, centerUtc.
+const tC1   = (ECL && ECL.partial_begin && ECL.partial_begin.time) ? ECL.partial_begin.time : null;
+const tPeak = (ECL && ECL.peak && ECL.peak.time) ? ECL.peak.time : null;
+const tSet  = (sunSetTime && sunSetTime.time) ? sunSetTime.time : null;
 
-const tStart = tC1 || Astronomy.MakeTime(makeUtcDate(ymd, hhmm));
-const tEnd   = tSet || Astronomy.MakeTime(makeUtcDate(ymd, {hh:23, mm:59}));
+const tStart = tPeak || tC1 || Astronomy.MakeTime(makeUtcDate(ymd, hhmm));
+const tEnd   = tSet  || Astronomy.MakeTime(makeUtcDate(ymd, {hh:23, mm:59}));
 
 let sunPts = buildSunPathBetweenTimes(OBS, tStart, tEnd, 60);
 
@@ -878,6 +874,7 @@ if (!Array.isArray(sunPts) || sunPts.length < 2) {
 {
   const seaSetPt = findSeaLevelSetFromSunPts(sunPts);
   SEA_SET_AZ = (seaSetPt && Number.isFinite(seaSetPt.az)) ? seaSetPt.az : null;
+  SEA_SET_TIME = (seaSetPt && seaSetPt.time instanceof Date) ? seaSetPt.time : null;
 }
 
 // ✅ Rang ALT (tu el tens com C1+1, el deix igual)
@@ -885,7 +882,7 @@ const c1Pt = (ECL && ECL.partial_begin && ECL.partial_begin.time)
   ? sunHorAtAstroTime(ECL.partial_begin.time, OBS)
   : null;
 
-const refAlt = (c1Pt && Number.isFinite(c1Pt.alt))
+const refAlt = (peakPt && Number.isFinite(peakPt.alt))
   ? c1Pt.alt
   : sunPts[Math.floor(sunPts.length/2)].alt;
 
@@ -931,8 +928,8 @@ SET_AZ  = (sunSetPt && Number.isFinite(sunSetPt.az)) ? sunSetPt.az : null;
 // marge per veure una mica abans/després
 const MARGIN_LAYOUT_AZ = 1.0;
 
-let AZ_MIN = (C1_AZ != null) ? (C1_AZ - MARGIN_LAYOUT_AZ) : 220;
-let AZ_MAX = (SET_AZ != null) ? (SET_AZ + MARGIN_LAYOUT_AZ) : 300;
+let AZ_MIN = (PEAK_AZ != null) ? (PEAK_AZ - MARGIN_LAYOUT_AZ) : 220;
+let AZ_MAX = (SEA_SET_AZ != null) ? (SEA_SET_AZ + MARGIN_LAYOUT_AZ) : ((SET_AZ != null) ? (SET_AZ + MARGIN_LAYOUT_AZ) : 300);
 
 // seguretat
 if (!Number.isFinite(AZ_MIN) || !Number.isFinite(AZ_MAX) || (AZ_MAX - AZ_MIN) < 5) {
@@ -990,8 +987,11 @@ async function updateHudFromTiles(){
       }
     }
 
+    const seaTxt = SEA_SET_TIME ? SEA_SET_TIME.toISOString().slice(11,16) : "—";
+    const locTxt = (LOCAL_SET && LOCAL_SET.time) ? LOCAL_SET.time.toISOString().slice(11,16) : "—";
+
     hud.textContent =
-      `Az ${az.toFixed(1)}° · Sol ${alt.toFixed(2)}° · Horitzó ${hzTxt}° · Δ ${dTxt}° · ${status}`;
+      `Az ${az.toFixed(1)}° · Sol ${alt.toFixed(2)}° · Horitzó ${hzTxt}° · Δ ${dTxt}° · ${status} · Posta mar ${seaTxt} · Posta horitzó ${locTxt}`;
 
   }catch(e){
     if(reqId !== __hudReqId) return;
@@ -1018,7 +1018,7 @@ const altSpan = (VIEW.altMax - VIEW.altMin);
 
 // punt esquerra: C1, punt dreta: posta a nivell del mar (alt=0)
 // fallback: si no tenim SEA_SET_AZ, usam SET_AZ (posta -0.833) o bé BASE_AZ
-const leftAz  = (Number.isFinite(C1_AZ) ? C1_AZ : BASE_AZ.min);
+const leftAz  = (Number.isFinite(PEAK_AZ) ? PEAK_AZ : BASE_AZ.min);
 const rightAz = (Number.isFinite(SEA_SET_AZ) ? SEA_SET_AZ : (Number.isFinite(SET_AZ) ? SET_AZ : BASE_AZ.max));
 
 // centre perquè sigui simètric
@@ -1102,6 +1102,24 @@ const daz = 0.1;
         }
       }
     );
+
+    // ✅ calcula la 'posta real' quan el Sol queda tapat per l'horitzó local (muntanyes)
+    try{
+      LOCAL_SET = await findLocalHorizonSetTime(OBS, tStart, tEnd, 180);
+      if(LOCAL_SET && LOCAL_SET.time instanceof Date){
+        // Marca al gràfic
+        MARKS.push({
+          az: LOCAL_SET.az,
+          alt: LOCAL_SET.alt,
+          time: Astronomy.MakeTime(LOCAL_SET.time),
+          label: `Posta horitzó ${LOCAL_SET.time.toISOString().slice(11,16)}`,
+          color: "rgba(180,255,180,0.95)"
+        });
+      }
+    }catch(e){
+      console.warn("No he pogut calcular la posta per horitzó", e);
+    }
+
 
   }catch(e){
     console.warn("Error carregant horitzó real", e);
