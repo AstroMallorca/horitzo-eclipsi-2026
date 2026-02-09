@@ -228,7 +228,9 @@ function applyObserverAltCorrection(hCritDeg, observerAltM){
       height: 1,
       interleave: true
     });
-
+const raw = rasters[0];
+const v = sanitizeHCrit(raw);
+if (!Number.isFinite(v)) console.warn("HCrit descartat", { raw, ds: ds.base, azDeg, tileX, tileY, col, row, tif });
  const v = sanitizeHCrit(rasters[0]);
 return { h_crit: v, tileX, tileY, col, row, tif, ds: ds.base };
   }
@@ -298,7 +300,10 @@ return { ...r0, h_crit: h, interp: true };
     const n = Math.floor((azMax - azMin)/daz) + 1;
     const az0 = azMin;
     const alt = new Array(n).fill(null);
-
+let minHC = +Infinity;
+let maxHC = -Infinity;
+let minAt = null;
+let maxAt = null;
     let done = 0;
     let nextRenderAt = throttleRenderEvery;
 
@@ -312,6 +317,11 @@ return { ...r0, h_crit: h, interp: true };
         try {
           const r = await getHCrit(lat, lon, az);
           alt[i] = r.h_crit;
+          if (Number.isFinite(r.h_crit)) {
+  if (r.h_crit < minHC) { minHC = r.h_crit; minAt = { az, ds: r.ds, tif: r.tif }; }
+  if (r.h_crit > maxHC) { maxHC = r.h_crit; maxAt = { az, ds: r.ds, tif: r.tif }; }
+}
+
         } catch (e) {
           console.warn("Tile fail", { az, err: (e && e.message) ? e.message : String(e) });
           alt[i] = null;
@@ -332,6 +342,12 @@ return { ...r0, h_crit: h, interp: true };
     await Promise.all(Array.from({length:k}, ()=>worker()));
 
     const finalAlt = alt.map(v => (v==null ? NaN : v));
+    console.log("HCrit profile summary", {
+  lat, lon, azMin, azMax, daz,
+  minHC, minAt,
+  maxHC, maxAt
+});
+
     return { az0, daz, alt: finalAlt };
   }
 
