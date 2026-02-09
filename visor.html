@@ -185,6 +185,17 @@ const R25_B = { min: 288.0, max: 300.0 };  // MDT25
     const inTile = (col >= 0 && col < pxN && row >= 0 && row < pxN);
     return { col, row, inTile };
   }
+function applyObserverAltCorrection(hCritDeg, observerAltM){
+  // si no hi ha altitud, no tocam res
+  if(!Number.isFinite(observerAltM) || observerAltM <= 0) return hCritDeg;
+
+  // Dip geomètric aproximat (deg). Suau i estable.
+  // dip ≈ 0.0293 * sqrt(h[m])
+  const dipDeg = 0.0293 * Math.sqrt(observerAltM);
+
+  // estar més alt fa baixar l'horitzó aparent -> h_crit baixa
+  return hCritDeg - dipDeg;
+}
 
   // Llegeix el valor h_crit per lat/lon/az
   async function getHCritFromDataset(lat, lon, azDeg, ds){
@@ -227,7 +238,8 @@ function inRange(a, r){ return a >= r.min && a < r.max; } // max exclòs per evi
 async function getHCrit(lat, lon, azDeg){
   // MDT05 (fi) només dins el seu rang
   if (inRange(azDeg, R05)) {
-    return await getHCritFromDataset(lat, lon, azDeg, DS05);
+    const r = await getHCritFromDataset(lat, lon, azDeg, DS05);
+    return { ...r, h_crit: applyObserverAltCorrection(r.h_crit, PARAMS.alt) };
   }
 
   // MDT25 a la resta (amb interpolació 1 grau)
@@ -235,13 +247,18 @@ async function getHCrit(lat, lon, azDeg){
     const a0 = Math.floor(azDeg);
     const a1 = Math.ceil(azDeg);
 
-    if (a0 === a1) return await getHCritFromDataset(lat, lon, a0, DS25);
+    if (a0 === a1) {
+      const r = await getHCritFromDataset(lat, lon, a0, DS25);
+      return { ...r, h_crit: applyObserverAltCorrection(r.h_crit, PARAMS.alt) };
+    }
 
     const r0 = await getHCritFromDataset(lat, lon, a0, DS25);
     const r1 = await getHCritFromDataset(lat, lon, a1, DS25);
 
     const t = (azDeg - a0) / (a1 - a0);
-    return { ...r0, h_crit: r0.h_crit + (r1.h_crit - r0.h_crit) * t, interp: true };
+    const h = r0.h_crit + (r1.h_crit - r0.h_crit) * t;
+
+    return { ...r0, h_crit: applyObserverAltCorrection(h, PARAMS.alt), interp: true };
   }
 
   // Fora del rang total
