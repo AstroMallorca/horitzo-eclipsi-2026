@@ -123,11 +123,14 @@ console.error("🚨 VISOR NOU CARREGAT");
     const a01 = Math.round(a * 10) / 10;
     return "az" + String(a01).replace(".", "_");
   }
-    // Datasets: MDT05 (precís) i MDT25 (farcit)
-  const DS05 = { base: "./data/tiles", step: 0.1 };      // existent
-  const DS25 = { base: "./data/tiles_mdt25", step: 1.0 };// nou
-  const DS05_AZ_MIN = 286.7;
-const DS05_AZ_MAX = 288.0;
+// Datasets
+const DS05 = { base: "./data/tiles",       step: 0.1 }; // fi (MDT05)
+const DS25 = { base: "./data/tiles_mdt25", step: 1.0 }; // gros (MDT25)
+
+// Rangs (el que has dit)
+const R25_A = { min: 260.0, max: 286.7 };  // MDT25
+const R05   = { min: 286.7, max: 288.0 };  // MDT05
+const R25_B = { min: 288.0, max: 300.0 };  // MDT25
 
 
   function azToBucketStep(azDeg, step){
@@ -219,18 +222,32 @@ async function getHCrit25Only(lat, lon, azDeg){
   return { ...r0, h_crit: r0.h_crit + (r1.h_crit - r0.h_crit) * t, interp: true };
 }
 
-  // Híbrid:
-  // 1) prova MDT05 (si hi ha tile/az) i
-  // 2) si no, usa MDT25 i interpola entre graus enters (gap petit) per suavitzar el perfil.
-  async function getHCrit(lat, lon, azDeg){
-// ✅ MDT05 primer (precís) NOMÉS dins el rang que existeix
-if (azDeg >= DS05_AZ_MIN && azDeg <= DS05_AZ_MAX){
-  try{
+function inRange(a, r){ return a >= r.min && a < r.max; } // max exclòs per evitar duplicats
+
+async function getHCrit(lat, lon, azDeg){
+  // MDT05 (fi) només dins el seu rang
+  if (inRange(azDeg, R05)) {
     return await getHCritFromDataset(lat, lon, azDeg, DS05);
-  }catch(e05){
-    // fallback MDT25
   }
+
+  // MDT25 a la resta (amb interpolació 1 grau)
+  if (inRange(azDeg, R25_A) || inRange(azDeg, R25_B)) {
+    const a0 = Math.floor(azDeg);
+    const a1 = Math.ceil(azDeg);
+
+    if (a0 === a1) return await getHCritFromDataset(lat, lon, a0, DS25);
+
+    const r0 = await getHCritFromDataset(lat, lon, a0, DS25);
+    const r1 = await getHCritFromDataset(lat, lon, a1, DS25);
+
+    const t = (azDeg - a0) / (a1 - a0);
+    return { ...r0, h_crit: r0.h_crit + (r1.h_crit - r0.h_crit) * t, interp: true };
+  }
+
+  // Fora del rang total
+  throw new Error(`Az fora rang tiles: ${azDeg.toFixed(2)}`);
 }
+
 
     // ✅ MDT25: interpola entre floor/ceil (màxim 1°)
     const a0 = Math.floor(azDeg);
@@ -954,8 +971,10 @@ window.addEventListener("resize", render);
   try{
     hud.textContent = "Carregant horitzó real (tiles)…";
 
-       const TILE_AZ_MIN = 260.0;
-    const TILE_AZ_MAX = 300.0;
+const TILE_AZ_MIN = 260.0;
+const TILE_AZ_MAX = 300.0;
+const daz = 0.1;
+
 
 
     // Rang dinàmic: C1 -> posta (mar). I clamped als tiles disponibles.
