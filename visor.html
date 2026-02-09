@@ -277,7 +277,7 @@ if (azDeg >= DS05_AZ_MIN && azDeg <= DS05_AZ_MAX){
         const az = az0 + i*daz;
 
         try{
-          const r = await getHCrit(lat, lon, az);
+          const r = await getHCrit25Only(lat, lon, az);
           alt[i] = r.h_crit;
         }catch(e){
           alt[i] = null; // falta tile/az
