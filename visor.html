@@ -3,7 +3,7 @@
 <head>
   <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
   <script>
-//console.error("🚨 VISOR NOU CARREGAT");
+console.error("🚨 VISOR NOU CARREGAT");
 </script>
   <meta name="mobile-web-app-capable" content="yes">
   <meta charset="utf-8">
@@ -290,12 +290,44 @@ function inRange(a, r){ return a >= r.min && a < r.max; } // max exclòs per evi
 
 async function getHCrit(lat, lon, azDeg){
   // MDT05 (fi) només dins el seu rang
+    // MDT05 (fi) només dins el seu rang
   if (inRange(azDeg, R05)) {
-const r = await getHCritFromDataset(lat, lon, azDeg, DS05);
-let h = sanitizeHCrit(r.h_crit);
-if (Number.isFinite(h)) h = applyObserverAltCorrection(h, PARAMS.alt);
-return { ...r, h_crit: h };
+
+    // 1) Llegeix MDT05
+    const r05 = await getHCritFromDataset(lat, lon, azDeg, DS05);
+    let h05 = sanitizeHCrit(r05.h_crit);
+
+    // 2) Llegeix MDT25 (interpolat a 1º) per comparar i tenir "pla B"
+    const r25 = await getHCrit25Only(lat, lon, azDeg);
+    let h25 = sanitizeHCrit(r25.h_crit);
+
+    // (Opcional) si vols aplicar correcció d'altitud, aplica-la als dos igual
+    // if (Number.isFinite(h05)) h05 = applyObserverAltCorrection(h05, PARAMS.alt);
+    // if (Number.isFinite(h25)) h25 = applyObserverAltCorrection(h25, PARAMS.alt);
+
+    // 3) Si MDT05 és "boig" (diferència massa grossa), usam MDT25
+    const THRESH_DEG = 1.0;  // prova 1º; si cal puja a 1.5º
+    if (Number.isFinite(h05) && Number.isFinite(h25) && Math.abs(h05 - h25) > THRESH_DEG) {
+      console.warn("MDT05 vs MDT25 mismatch -> fallback MDT25", {
+        azDeg,
+        h05, h25,
+        diff: Math.abs(h05 - h25),
+        r05: { tif: r05.tif, tileX: r05.tileX, tileY: r05.tileY, col: r05.col, row: r05.row, pxN: r05.pxN, res: r05.res },
+        r25: { tif: r25.tif, tileX: r25.tileX, tileY: r25.tileY, col: r25.col, row: r25.row, pxN: r25.pxN, res: r25.res }
+      });
+      return { ...r25, h_crit: h25, used: "MDT25_fallback" };
+    }
+
+    // 4) Si MDT05 és NaN però MDT25 és bo, també fallback
+    if (!Number.isFinite(h05) && Number.isFinite(h25)) {
+      console.warn("MDT05 NaN -> fallback MDT25", { azDeg, r05: r05.tif, r25: r25.tif });
+      return { ...r25, h_crit: h25, used: "MDT25_fallback_nan05" };
+    }
+
+    // 5) Cas normal: MDT05
+    return { ...r05, h_crit: h05, used: "MDT05" };
   }
+
 
   // MDT25 a la resta (amb interpolació 1 grau)
   if (inRange(azDeg, R25_A) || inRange(azDeg, R25_B)) {
