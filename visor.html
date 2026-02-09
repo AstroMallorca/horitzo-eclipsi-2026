@@ -211,28 +211,41 @@ function applyObserverAltCorrection(hCritDeg, observerAltM){
 }
 
   // Llegeix el valor h_crit per lat/lon/az
-  async function getHCritFromDataset(lat, lon, azDeg, ds){
-    const meta = await loadMetaFor(ds.base);
-    const { E, N } = lonLatToEN(lon, lat);
+async function getHCritFromDataset(lat, lon, azDeg, ds){
+  const meta = await loadMetaFor(ds.base);
+  const { E, N } = lonLatToEN(lon, lat);
 
-    const { tileX, tileY, tif } = await resolveTifPath(lat, lon, azDeg, ds);
-    const { col, row, inTile } = enToPixelInTile(E, N, meta, tileX, tileY);
+  const { tileX, tileY, tif } = await resolveTifPath(lat, lon, azDeg, ds);
 
-    if (!inTile) throw new Error(`Punt fora del tile: col=${col}, row=${row}`);
+  const { img } = await loadTiff(tif);
 
-    const { img } = await loadTiff(tif);
+  // ✅ usa dimensions reals del GeoTIFF
+  const pxN = img.getWidth();                 // ex: MDT05=100, MDT25=40, etc.
+  const res = meta.tile_size_m / pxN;         // ex: 10000/40=250 m
 
-    const rasters = await img.readRasters({
-      window: [col, row, col + 1, row + 1],
-      width: 1,
-      height: 1,
-      interleave: true
-    });
-const raw = rasters[0];
-const v = sanitizeHCrit(raw);
-if (!Number.isFinite(v)) console.warn("HCrit descartat", { raw, ds: ds.base, azDeg, tileX, tileY, col, row, tif });
-return { h_crit: v, tileX, tileY, col, row, tif, ds: ds.base };
-  }
+  const xmin0 = meta.tile_grid.origin_xmin;
+  const ymax0 = meta.tile_grid.origin_ymax;
+  const tileSize = meta.tile_size_m;
+
+  const tileXmin = xmin0 + tileX * tileSize;
+  const tileYmax = ymax0 - tileY * tileSize;
+
+  const col = Math.floor((E - tileXmin) / res);
+  const row = Math.floor((tileYmax - N) / res);
+
+  const inTile = (col >= 0 && col < pxN && row >= 0 && row < pxN);
+  if (!inTile) throw new Error(`Punt fora del tile: col=${col}, row=${row}, pxN=${pxN}`);
+
+  const rasters = await img.readRasters({
+    window: [col, row, col + 1, row + 1],
+    width: 1,
+    height: 1,
+    interleave: true
+  });
+
+  const v = sanitizeHCrit(rasters[0]);
+  return { h_crit: v, tileX, tileY, col, row, tif, ds: ds.base, pxN, res };
+}
 async function getHCrit25Only(lat, lon, azDeg){
   // força MDT25 i NO silencia errors
   const a0 = Math.floor(azDeg);
