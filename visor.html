@@ -248,29 +248,6 @@ async function getHCrit(lat, lon, azDeg){
   throw new Error(`Az fora rang tiles: ${azDeg.toFixed(2)}`);
 }
 
-
-    // ✅ MDT25: interpola entre floor/ceil (màxim 1°)
-    const a0 = Math.floor(azDeg);
-    const a1 = Math.ceil(azDeg);
-
-    if (a0 === a1){
-      return await getHCritFromDataset(lat, lon, a0, DS25);
-    }
-
-    const r0 = await getHCritFromDataset(lat, lon, a0, DS25);
-    const r1 = await getHCritFromDataset(lat, lon, a1, DS25);
-
-    if (!Number.isFinite(r0.h_crit) || !Number.isFinite(r1.h_crit)){
-      return { ...r0, h_crit: NaN };
-    }
-
-    const t = (azDeg - a0) / (a1 - a0); // 0..1
-    const h = r0.h_crit + (r1.h_crit - r0.h_crit) * t;
-
-    return { ...r0, h_crit: h, interp: true };
-  }
-
-
   async function buildHorizonProfileFromTiles(lat, lon, azMin, azMax, daz=0.1, opts={}){
     const {
       concurrency = 6,
@@ -293,9 +270,9 @@ async function getHCrit(lat, lon, azDeg){
         const i = idxs.shift();
         const az = az0 + i*daz;
 
-        try{
-          const r = await getHCrit25Only(lat, lon, az);
-          alt[i] = r.h_crit;
+const r = await getHCrit(lat, lon, az);
+alt[i] = r.h_crit;
+
 }catch(e){
   console.warn("MDT25 fail", {az, err: (e && e.message) ? e.message : String(e)});
   alt[i] = null;
@@ -986,8 +963,6 @@ const daz = 0.1;
 
     const azMin = Math.max(TILE_AZ_MIN, dynMin - margin);
     const azMax = Math.min(TILE_AZ_MAX, dynMax + margin);
-
-    const daz = 1.0;
 
 
     CURRENT_PROFILE = await buildHorizonProfileFromTiles(
