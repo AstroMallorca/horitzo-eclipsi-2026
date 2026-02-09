@@ -302,16 +302,20 @@ function updateMapInfo(){
 }
 async function fetchElevation(lat, lon){
   try{
-    const url = `https://api.open-elevation.com/api/v1/lookup?locations=${lat},${lon}`;
-    const r = await fetch(url);
+    const url = `https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`;
+    const r = await fetch(url, { cache: "no-store" });
     if(!r.ok) return null;
     const j = await r.json();
-    const h = j?.results?.[0]?.elevation;
+
+    // Open-Meteo pot retornar "elevation" com array (1 punt) o número (segons format)
+    const h = Array.isArray(j?.elevation) ? j.elevation[0] : j?.elevation;
+
     return Number.isFinite(h) ? h : null;
   }catch(e){
     return null;
   }
 }
+
 
 async function setPicked(lat, lon){
   picked.lat = lat;
