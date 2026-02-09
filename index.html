@@ -16,6 +16,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Horitzó 2026">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
     :root{
@@ -93,7 +95,7 @@
   cursor:pointer;
 }
 
-.mapBox{ flex:1; min-height:280px; }
+.mapBox{ flex:1; min-height:280px; height:100%; }
 .mapInfo{
   padding:10px 12px;
   font-size:14px;
@@ -272,18 +274,20 @@ if (!btnMap || !mapModal || !mapOk || !mapCancel || !mapClose || !mapInfo) {
     }
     btnGo.disabled = true;
   }
-let gmap = null;
-let gmarker = null;
+let gmap = null;     // ara serà el mapa Leaflet
+let gmarker = null;  // marker Leaflet
 let picked = {lat:null, lon:null, alt:0};
 
 function openMapModal(){
   mapModal.classList.remove("ocult");
   mapModal.setAttribute("aria-hidden", "false");
 
-  // Si el mapa ja està creat, només recalculam el render dins el modal
-  if (gmap && window.google && google.maps) {
-    google.maps.event.trigger(gmap, "resize");
-    if (gmarker) gmap.setCenter(gmarker.getPosition());
+  // Important en modals: recalcular mida
+  if (gmap) {
+    setTimeout(() => {
+      gmap.invalidateSize();
+      if (gmarker) gmap.panTo(gmarker.getLatLng());
+    }, 50);
   }
 }
 
@@ -297,44 +301,55 @@ function updateMapInfo(){
     `lat ${picked.lat?.toFixed(6) ?? "—"}, lon ${picked.lon?.toFixed(6) ?? "—"}, alt ${Math.round(picked.alt ?? 0)} m`;
 }
 
-// (Opcional) intenta obtenir altitud via ElevationService (si tens l’API d’elevation activada)
-function tryElevation(lat, lon){
-  return new Promise(resolve => {
-    try{
-      if(!window.google || !google.maps) return resolve(null);
-      const svc = new google.maps.ElevationService();
-      svc.getElevationForLocations(
-        { locations: [{ lat, lng: lon }] },
-        (results, status) => {
-          const h = (status === "OK" && results && results[0]) ? results[0].elevation : null;
-          resolve(Number.isFinite(h) ? h : null);
-        }
-      );
-    }catch(e){
-      resolve(null);
-    }
-  });
-}
-
-async function setPicked(lat, lon){
+function setPicked(lat, lon){
   picked.lat = lat;
   picked.lon = lon;
+  // Sense servei d'elevació: deixem alt=0 (l'usuari el pot ajustar manualment)
   picked.alt = 0;
   updateMapInfo();
-
-  const h = await tryElevation(lat, lon);
-  if(Number.isFinite(h)){
-    picked.alt = h;
-    updateMapInfo();
-  }
 }
 
 function initMapIfNeeded(){
-  if(gmap) return;
-  if(!window.google || !google.maps){
-    mapInfo.textContent = "Google Maps no s'ha carregat (falta API key o script).";
+  if (gmap) return;
+  if (!window.L) {
+    mapInfo.textContent = "Leaflet no s'ha carregat (falta el script CDN).";
     return;
   }
+
+  // Punt inicial: si tens manual omplert, l’agafa; si no, GPS si existeix; si no, Palma.
+  const vMan = validateManual();
+  const startLat = vMan.ok ? vMan.lat : (current.lat ?? 39.5733);
+  const startLon = vMan.ok ? vMan.lon : (current.lon ?? 2.6564);
+
+  gmap = L.map("gmap", {
+    zoomControl: true
+  }).setView([startLat, startLon], 12);
+
+  // Base map gratuït (OpenStreetMap)
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "&copy; OpenStreetMap"
+  }).addTo(gmap);
+
+  gmarker = L.marker([startLat, startLon], { draggable: true }).addTo(gmap);
+
+  setPicked(startLat, startLon);
+
+  // Click al mapa → mou marcador
+  gmap.on("click", (e) => {
+    const lat = e.latlng.lat;
+    const lon = e.latlng.lng;
+    gmarker.setLatLng([lat, lon]);
+    gmap.panTo([lat, lon]);
+    setPicked(lat, lon);
+  });
+
+  // Drag marker → actualitza coords
+  gmarker.on("dragend", () => {
+    const p = gmarker.getLatLng();
+    setPicked(p.lat, p.lng);
+  });
+}
 
   // punt inicial: si tens manual omplert, l’agafa; si no, usa la ubicació GPS si existeix; si no, Palma.
   const vMan = validateManual();
