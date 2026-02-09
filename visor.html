@@ -283,7 +283,8 @@ function inRange(a, r){ return a >= r.min && a < r.max; } // max exclòs per evi
 
 async function getHCrit(lat, lon, azDeg){
   // clamp global (evita errors quan Astronomy Engine dona az una mica >299)
-  azDeg = clampAz(azDeg);
+  azDeg = clampAzToTiles(azDeg);
+
 
   // Força MDT05 (recomanat si és el que et dona l'horitzó "real")
   if (USE_MDT05_ONLY) {
@@ -920,7 +921,9 @@ if (!Array.isArray(sunPts) || sunPts.length < 2) {
 const c1Pt = (ECL && ECL.partial_begin && ECL.partial_begin.time)
   ? sunHorAtAstroTime(ECL.partial_begin.time, OBS)
   : null;
-
+const peakPt = (ECL && ECL.peak && ECL.peak.time)
+  ? sunHorAtAstroTime(ECL.peak.time, OBS)
+  : null;
 const refAlt = (peakPt && Number.isFinite(peakPt.alt))
   ? c1Pt.alt
   : sunPts[Math.floor(sunPts.length/2)].alt;
@@ -928,9 +931,6 @@ const refAlt = (peakPt && Number.isFinite(peakPt.alt))
 VIEW.altMin = 0;
 VIEW.altMax = Math.max(5, Math.ceil(refAlt + 1));
 
-const peakPt = (ECL && ECL.peak && ECL.peak.time)
-  ? sunHorAtAstroTime(ECL.peak.time, OBS)
-  : null;
 
 const sunAtCenter = peakPt || sunPts[Math.floor(sunPts.length/2)];
 
