@@ -185,6 +185,19 @@ const R25_B = { min: 288.0, max: 300.0 };  // MDT25
     const inTile = (col >= 0 && col < pxN && row >= 0 && row < pxN);
     return { col, row, inTile };
   }
+  function sanitizeHCrit(v){
+  // Converteix valors “bogus” (NoData/sentinelles/outliers) a NaN
+  if(!Number.isFinite(v)) return NaN;
+
+  // sentinelles típiques
+  if(v <= -9990 || v >= 9990) return NaN;
+
+  // rang físic raonable (ajusta si vols, però és segur per Balears)
+  // l’horitzó crític rarament serà < -5° o > 45°
+  if(v < -5 || v > 45) return NaN;
+
+  return v;
+}
 function applyObserverAltCorrection(hCritDeg, observerAltM){
   // si no hi ha altitud, no tocam res
   if(!Number.isFinite(observerAltM) || observerAltM <= 0) return hCritDeg;
@@ -216,8 +229,8 @@ function applyObserverAltCorrection(hCritDeg, observerAltM){
       interleave: true
     });
 
-    const v = rasters[0];
-    return { h_crit: v, tileX, tileY, col, row, tif, ds: ds.base };
+ const v = sanitizeHCrit(rasters[0]);
+return { h_crit: v, tileX, tileY, col, row, tif, ds: ds.base };
   }
 async function getHCrit25Only(lat, lon, azDeg){
   // força MDT25 i NO silencia errors
@@ -238,8 +251,10 @@ function inRange(a, r){ return a >= r.min && a < r.max; } // max exclòs per evi
 async function getHCrit(lat, lon, azDeg){
   // MDT05 (fi) només dins el seu rang
   if (inRange(azDeg, R05)) {
-    const r = await getHCritFromDataset(lat, lon, azDeg, DS05);
-    return { ...r, h_crit: applyObserverAltCorrection(r.h_crit, PARAMS.alt) };
+const r = await getHCritFromDataset(lat, lon, azDeg, DS05);
+let h = sanitizeHCrit(r.h_crit);
+if (Number.isFinite(h)) h = applyObserverAltCorrection(h, PARAMS.alt);
+return { ...r, h_crit: h };
   }
 
   // MDT25 a la resta (amb interpolació 1 grau)
@@ -248,17 +263,24 @@ async function getHCrit(lat, lon, azDeg){
     const a1 = Math.ceil(azDeg);
 
     if (a0 === a1) {
-      const r = await getHCritFromDataset(lat, lon, a0, DS25);
-      return { ...r, h_crit: applyObserverAltCorrection(r.h_crit, PARAMS.alt) };
+   const r = await getHCritFromDataset(lat, lon, a0, DS25);
+let h = sanitizeHCrit(r.h_crit);
+if (Number.isFinite(h)) h = applyObserverAltCorrection(h, PARAMS.alt);
+return { ...r, h_crit: h };
     }
 
     const r0 = await getHCritFromDataset(lat, lon, a0, DS25);
     const r1 = await getHCritFromDataset(lat, lon, a1, DS25);
 
     const t = (azDeg - a0) / (a1 - a0);
-    const h = r0.h_crit + (r1.h_crit - r0.h_crit) * t;
+let h = r0.h_crit + (r1.h_crit - r0.h_crit) * t;
+h = sanitizeHCrit(h);
 
-    return { ...r0, h_crit: applyObserverAltCorrection(h, PARAMS.alt), interp: true };
+if (Number.isFinite(h)) {
+  h = applyObserverAltCorrection(h, PARAMS.alt);
+}
+
+return { ...r0, h_crit: h, interp: true };
   }
 
   // Fora del rang total
