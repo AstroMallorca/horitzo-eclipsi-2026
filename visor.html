@@ -279,9 +279,10 @@ if (azDeg >= DS05_AZ_MIN && azDeg <= DS05_AZ_MAX){
         try{
           const r = await getHCrit25Only(lat, lon, az);
           alt[i] = r.h_crit;
-        }catch(e){
-          alt[i] = null; // falta tile/az
-        }
+}catch(e){
+  console.warn("MDT25 fail", {az, err: (e && e.message) ? e.message : String(e)});
+  alt[i] = null;
+}
 
         done++;
         if(onProgress) onProgress(done, n);
