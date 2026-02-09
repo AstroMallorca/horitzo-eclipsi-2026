@@ -300,13 +300,30 @@ function updateMapInfo(){
   mapInfo.textContent =
     `lat ${picked.lat?.toFixed(6) ?? "—"}, lon ${picked.lon?.toFixed(6) ?? "—"}, alt ${Math.round(picked.alt ?? 0)} m`;
 }
+async function fetchElevation(lat, lon){
+  try{
+    const url = `https://api.open-elevation.com/api/v1/lookup?locations=${lat},${lon}`;
+    const r = await fetch(url);
+    if(!r.ok) return null;
+    const j = await r.json();
+    const h = j?.results?.[0]?.elevation;
+    return Number.isFinite(h) ? h : null;
+  }catch(e){
+    return null;
+  }
+}
 
-function setPicked(lat, lon){
+async function setPicked(lat, lon){
   picked.lat = lat;
   picked.lon = lon;
-  // Sense servei d'elevació: deixem alt=0 (l'usuari el pot ajustar manualment)
   picked.alt = 0;
   updateMapInfo();
+
+  const h = await fetchElevation(lat, lon);
+  if(Number.isFinite(h)){
+    picked.alt = h;
+    updateMapInfo();
+  }
 }
 
 function initMapIfNeeded(){
