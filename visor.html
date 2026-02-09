@@ -4,7 +4,7 @@
 <head>
   <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
   <script>
-console.error("🚨 VISOR NOU CARREGAT");
+//console.error("🚨 VISOR NOU CARREGAT");
 </script>
   <meta name="mobile-web-app-capable" content="yes">
   <meta charset="utf-8">
@@ -877,21 +877,23 @@ if (!Array.isArray(sunPts) || sunPts.length < 2) {
   SEA_SET_TIME = (seaSetPt && seaSetPt.time instanceof Date) ? seaSetPt.time : null;
 }
 
-// ✅ Rang ALT (tu el tens com C1+1, el deix igual)
+// ✅ Rang ALT
 const c1Pt = (ECL && ECL.partial_begin && ECL.partial_begin.time)
   ? sunHorAtAstroTime(ECL.partial_begin.time, OBS)
   : null;
 
-const refAlt = (peakPt && Number.isFinite(peakPt.alt))
-  ? c1Pt.alt
-  : sunPts[Math.floor(sunPts.length/2)].alt;
-
-VIEW.altMin = 0;
-VIEW.altMax = Math.max(5, Math.ceil(refAlt + 1));
-
 const peakPt = (ECL && ECL.peak && ECL.peak.time)
   ? sunHorAtAstroTime(ECL.peak.time, OBS)
   : null;
+
+// agafam una altitud de referència “estable”
+const refAlt =
+  (peakPt && Number.isFinite(peakPt.alt)) ? peakPt.alt :
+  (c1Pt   && Number.isFinite(c1Pt.alt))   ? c1Pt.alt   :
+  sunPts[Math.floor(sunPts.length/2)].alt;
+
+VIEW.altMin = 0;
+VIEW.altMax = Math.max(5, Math.ceil(refAlt + 1));
 
 const sunAtCenter = peakPt || sunPts[Math.floor(sunPts.length/2)];
 
