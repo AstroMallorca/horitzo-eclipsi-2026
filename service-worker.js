@@ -1,4 +1,4 @@
-const CACHE_NAME = "horitzo-eclipsi-2026-v5";
+const CACHE_NAME = "horitzo-eclipsi-2026-v6";
 
 const CACHE_FILES = [
   "./",
