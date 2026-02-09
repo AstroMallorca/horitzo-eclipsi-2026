@@ -3,7 +3,7 @@
 <head>
   <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
   <script>
-//console.error("🚨 VISOR NOU CARREGAT");
+console.error("🚨 VISOR NOU CARREGAT");
 </script>
   <meta name="mobile-web-app-capable" content="yes">
   <meta charset="utf-8">
@@ -123,11 +123,14 @@
     const a01 = Math.round(a * 10) / 10;
     return "az" + String(a01).replace(".", "_");
   }
-    // Datasets: MDT05 (precís) i MDT25 (farcit)
-  const DS05 = { base: "./data/tiles", step: 0.1 };      // existent
-  const DS25 = { base: "./data/tiles_mdt25", step: 1.0 };// nou
-  const DS05_AZ_MIN = 286.7;
-const DS05_AZ_MAX = 288.0;
+// Datasets
+const DS05 = { base: "./data/tiles",       step: 0.1 }; // fi (MDT05)
+const DS25 = { base: "./data/tiles_mdt25", step: 1.0 }; // gros (MDT25)
+
+// Rangs (el que has dit)
+const R25_A = { min: 260.0, max: 286.7 };  // MDT25
+const R05   = { min: 286.7, max: 288.0 };  // MDT05
+const R25_B = { min: 288.0, max: 300.0 };  // MDT25
 
 
   function azToBucketStep(azDeg, step){
@@ -182,29 +185,67 @@ const DS05_AZ_MAX = 288.0;
     const inTile = (col >= 0 && col < pxN && row >= 0 && row < pxN);
     return { col, row, inTile };
   }
+  function sanitizeHCrit(v){
+  // Converteix valors “bogus” (NoData/sentinelles/outliers) a NaN
+  if(!Number.isFinite(v)) return NaN;
+
+  // sentinelles típiques
+  if(v <= -9990 || v >= 9990) return NaN;
+
+  // rang físic raonable (ajusta si vols, però és segur per Balears)
+  // l’horitzó crític rarament serà < -5° o > 45°
+  if(v < -5 || v > 45) return NaN;
+
+  return v;
+}
+function applyObserverAltCorrection(hCritDeg, observerAltM){
+  // si no hi ha altitud, no tocam res
+  if(!Number.isFinite(observerAltM) || observerAltM <= 0) return hCritDeg;
+
+  // Dip geomètric aproximat (deg). Suau i estable.
+  // dip ≈ 0.0293 * sqrt(h[m])
+  const dipDeg = 0.0293 * Math.sqrt(observerAltM);
+
+  // estar més alt fa baixar l'horitzó aparent -> h_crit baixa
+  return hCritDeg - dipDeg;
+}
 
   // Llegeix el valor h_crit per lat/lon/az
-  async function getHCritFromDataset(lat, lon, azDeg, ds){
-    const meta = await loadMetaFor(ds.base);
-    const { E, N } = lonLatToEN(lon, lat);
+async function getHCritFromDataset(lat, lon, azDeg, ds){
+  const meta = await loadMetaFor(ds.base);
+  const { E, N } = lonLatToEN(lon, lat);
 
-    const { tileX, tileY, tif } = await resolveTifPath(lat, lon, azDeg, ds);
-    const { col, row, inTile } = enToPixelInTile(E, N, meta, tileX, tileY);
+  const { tileX, tileY, tif } = await resolveTifPath(lat, lon, azDeg, ds);
 
-    if (!inTile) throw new Error(`Punt fora del tile: col=${col}, row=${row}`);
+  const { img } = await loadTiff(tif);
 
-    const { img } = await loadTiff(tif);
+  // ✅ usa dimensions reals del GeoTIFF
+  const pxN = img.getWidth();                 // ex: MDT05=100, MDT25=40, etc.
+  const res = meta.tile_size_m / pxN;         // ex: 10000/40=250 m
 
-    const rasters = await img.readRasters({
-      window: [col, row, col + 1, row + 1],
-      width: 1,
-      height: 1,
-      interleave: true
-    });
+  const xmin0 = meta.tile_grid.origin_xmin;
+  const ymax0 = meta.tile_grid.origin_ymax;
+  const tileSize = meta.tile_size_m;
 
-    const v = rasters[0];
-    return { h_crit: v, tileX, tileY, col, row, tif, ds: ds.base };
-  }
+  const tileXmin = xmin0 + tileX * tileSize;
+  const tileYmax = ymax0 - tileY * tileSize;
+
+  const col = Math.floor((E - tileXmin) / res);
+  const row = Math.floor((tileYmax - N) / res);
+
+  const inTile = (col >= 0 && col < pxN && row >= 0 && row < pxN);
+  if (!inTile) throw new Error(`Punt fora del tile: col=${col}, row=${row}, pxN=${pxN}`);
+
+  const rasters = await img.readRasters({
+    window: [col, row, col + 1, row + 1],
+    width: 1,
+    height: 1,
+    interleave: true
+  });
+
+  const v = sanitizeHCrit(rasters[0]);
+  return { h_crit: v, tileX, tileY, col, row, tif, ds: ds.base, pxN, res };
+}
 async function getHCrit25Only(lat, lon, azDeg){
   // força MDT25 i NO silencia errors
   const a0 = Math.floor(azDeg);
@@ -219,40 +260,46 @@ async function getHCrit25Only(lat, lon, azDeg){
   return { ...r0, h_crit: r0.h_crit + (r1.h_crit - r0.h_crit) * t, interp: true };
 }
 
-  // Híbrid:
-  // 1) prova MDT05 (si hi ha tile/az) i
-  // 2) si no, usa MDT25 i interpola entre graus enters (gap petit) per suavitzar el perfil.
-  async function getHCrit(lat, lon, azDeg){
-// ✅ MDT05 primer (precís) NOMÉS dins el rang que existeix
-if (azDeg >= DS05_AZ_MIN && azDeg <= DS05_AZ_MAX){
-  try{
-    return await getHCritFromDataset(lat, lon, azDeg, DS05);
-  }catch(e05){
-    // fallback MDT25
-  }
-}
+function inRange(a, r){ return a >= r.min && a < r.max; } // max exclòs per evitar duplicats
 
-    // ✅ MDT25: interpola entre floor/ceil (màxim 1°)
+async function getHCrit(lat, lon, azDeg){
+  // MDT05 (fi) només dins el seu rang
+  if (inRange(azDeg, R05)) {
+const r = await getHCritFromDataset(lat, lon, azDeg, DS05);
+let h = sanitizeHCrit(r.h_crit);
+if (Number.isFinite(h)) h = applyObserverAltCorrection(h, PARAMS.alt);
+return { ...r, h_crit: h };
+  }
+
+  // MDT25 a la resta (amb interpolació 1 grau)
+  if (inRange(azDeg, R25_A) || inRange(azDeg, R25_B)) {
     const a0 = Math.floor(azDeg);
     const a1 = Math.ceil(azDeg);
 
-    if (a0 === a1){
-      return await getHCritFromDataset(lat, lon, a0, DS25);
+    if (a0 === a1) {
+   const r = await getHCritFromDataset(lat, lon, a0, DS25);
+let h = sanitizeHCrit(r.h_crit);
+if (Number.isFinite(h)) h = applyObserverAltCorrection(h, PARAMS.alt);
+return { ...r, h_crit: h };
     }
 
     const r0 = await getHCritFromDataset(lat, lon, a0, DS25);
     const r1 = await getHCritFromDataset(lat, lon, a1, DS25);
 
-    if (!Number.isFinite(r0.h_crit) || !Number.isFinite(r1.h_crit)){
-      return { ...r0, h_crit: NaN };
-    }
+    const t = (azDeg - a0) / (a1 - a0);
+let h = r0.h_crit + (r1.h_crit - r0.h_crit) * t;
+h = sanitizeHCrit(h);
 
-    const t = (azDeg - a0) / (a1 - a0); // 0..1
-    const h = r0.h_crit + (r1.h_crit - r0.h_crit) * t;
+if (Number.isFinite(h)) {
+  h = applyObserverAltCorrection(h, PARAMS.alt);
+}
 
-    return { ...r0, h_crit: h, interp: true };
+return { ...r0, h_crit: h, interp: true };
   }
 
+  // Fora del rang total
+  throw new Error(`Az fora rang tiles: ${azDeg.toFixed(2)}`);
+}
 
   async function buildHorizonProfileFromTiles(lat, lon, azMin, azMax, daz=0.1, opts={}){
     const {
@@ -265,7 +312,10 @@ if (azDeg >= DS05_AZ_MIN && azDeg <= DS05_AZ_MAX){
     const n = Math.floor((azMax - azMin)/daz) + 1;
     const az0 = azMin;
     const alt = new Array(n).fill(null);
-
+let minHC = +Infinity;
+let maxHC = -Infinity;
+let minAt = null;
+let maxAt = null;
     let done = 0;
     let nextRenderAt = throttleRenderEvery;
 
@@ -276,13 +326,18 @@ if (azDeg >= DS05_AZ_MIN && azDeg <= DS05_AZ_MAX){
         const i = idxs.shift();
         const az = az0 + i*daz;
 
-        try{
-          const r = await getHCrit25Only(lat, lon, az);
+        try {
+          const r = await getHCrit(lat, lon, az);
           alt[i] = r.h_crit;
-}catch(e){
-  console.warn("MDT25 fail", {az, err: (e && e.message) ? e.message : String(e)});
-  alt[i] = null;
+          if (Number.isFinite(r.h_crit)) {
+  if (r.h_crit < minHC) { minHC = r.h_crit; minAt = { az, ds: r.ds, tif: r.tif }; }
+  if (r.h_crit > maxHC) { maxHC = r.h_crit; maxAt = { az, ds: r.ds, tif: r.tif }; }
 }
+
+        } catch (e) {
+          console.warn("Tile fail", { az, err: (e && e.message) ? e.message : String(e) });
+          alt[i] = null;
+        }
 
         done++;
         if(onProgress) onProgress(done, n);
@@ -299,6 +354,12 @@ if (azDeg >= DS05_AZ_MIN && azDeg <= DS05_AZ_MAX){
     await Promise.all(Array.from({length:k}, ()=>worker()));
 
     const finalAlt = alt.map(v => (v==null ? NaN : v));
+    console.log("HCrit profile summary", {
+  lat, lon, azMin, azMax, daz,
+  minHC, minAt,
+  maxHC, maxAt
+});
+
     return { az0, daz, alt: finalAlt };
   }
 
@@ -954,8 +1015,10 @@ window.addEventListener("resize", render);
   try{
     hud.textContent = "Carregant horitzó real (tiles)…";
 
-       const TILE_AZ_MIN = 260.0;
-    const TILE_AZ_MAX = 300.0;
+const TILE_AZ_MIN = 260.0;
+const TILE_AZ_MAX = 299.0;
+const daz = 0.1;
+
 
 
     // Rang dinàmic: C1 -> posta (mar). I clamped als tiles disponibles.
@@ -967,8 +1030,6 @@ window.addEventListener("resize", render);
 
     const azMin = Math.max(TILE_AZ_MIN, dynMin - margin);
     const azMax = Math.min(TILE_AZ_MAX, dynMax + margin);
-
-    const daz = 1.0;
 
 
     CURRENT_PROFILE = await buildHorizonProfileFromTiles(
