@@ -205,6 +205,19 @@ const DS05_AZ_MAX = 288.0;
     const v = rasters[0];
     return { h_crit: v, tileX, tileY, col, row, tif, ds: ds.base };
   }
+async function getHCrit25Only(lat, lon, azDeg){
+  // força MDT25 i NO silencia errors
+  const a0 = Math.floor(azDeg);
+  const a1 = Math.ceil(azDeg);
+
+  if (a0 === a1) return await getHCritFromDataset(lat, lon, a0, DS25);
+
+  const r0 = await getHCritFromDataset(lat, lon, a0, DS25);
+  const r1 = await getHCritFromDataset(lat, lon, a1, DS25);
+
+  const t = (azDeg - a0) / (a1 - a0);
+  return { ...r0, h_crit: r0.h_crit + (r1.h_crit - r0.h_crit) * t, interp: true };
+}
 
   // Híbrid:
   // 1) prova MDT05 (si hi ha tile/az) i
