@@ -74,7 +74,7 @@ console.error("🚨 VISOR NOU CARREGAT");
 
   // Metas per dataset (MDT05 i MDT25)
   const __META = new Map(); // baseDir -> meta
-
+  
   async function loadMetaFor(baseDir){
     if (__META.has(baseDir)) return __META.get(baseDir);
 
@@ -86,7 +86,42 @@ console.error("🚨 VISOR NOU CARREGAT");
     __META.set(baseDir, meta);
     return meta;
   }
+async function testTerrariumHorizon() {
+  const engine = window.__HORIZON_ENGINE__;
 
+  const lat = Number(URL_PARAMS.get("lat")) || 39.5696;
+  const lon = Number(URL_PARAMS.get("lon")) || 2.6502;
+
+  const centerAzDeg = 290;
+  const fovDeg = 60;
+
+  console.log("Calculant horitzó online...");
+  const profile = await engine.computeProfile({
+    lat,
+    lon,
+    centerAzDeg,
+    fovDeg,
+    samples: 800,
+    maxDistM: 100000,
+    distanceStepM: 500,
+    onProgress: (p) => {
+      console.log(`Progrés: ${(p.fraction * 100).toFixed(1)}%`);
+    }
+  });
+
+  console.log("Perfil calculat", profile);
+
+  // Exposa-ho com fa el teu visor actual
+  window.CURRENT_PROFILE = {
+    az0: profile.az0,
+    daz: profile.daz,
+    alt: Array.from(profile.alt),
+  };
+
+  if (typeof render === "function") {
+    render();
+  }
+}
   // lat/lon (WGS84) -> (E,N) en metres (EPSG:25831)
   function lonLatToEN(lon, lat) {
     const [E, N] = proj4("EPSG:4326", "EPSG:25831", [lon, lat]);
