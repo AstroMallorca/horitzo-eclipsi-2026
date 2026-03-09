@@ -2,13 +2,13 @@
 
 const DEG2RAD = Math.PI / 180;
 const RAD2DEG = 180 / Math.PI;
-const EARTH_RADIUS = 6371000;
+const EARTH_RADIUS_M = 6371000;
 
 function terrariumHeight(r, g, b) {
   return (r * 256 + g + b / 256) - 32768;
 }
 
-function lonLatToTile(lon, lat, z) {
+function lonLatToTileXY(lon, lat, z) {
   const n = 2 ** z;
   const x = ((lon + 180) / 360) * n;
   const latRad = lat * DEG2RAD;
@@ -17,60 +17,53 @@ function lonLatToTile(lon, lat, z) {
   return { x, y };
 }
 
-function destination(lat, lon, azDeg, distM) {
-  const φ1 = lat * DEG2RAD;
-  const λ1 = lon * DEG2RAD;
-  const θ = azDeg * DEG2RAD;
-  const δ = distM / EARTH_RADIUS;
+function destinationPoint(latDeg, lonDeg, azDeg, distM) {
+  const lat1 = latDeg * DEG2RAD;
+  const lon1 = lonDeg * DEG2RAD;
+  const brng = azDeg * DEG2RAD;
+  const angDist = distM / EARTH_RADIUS_M;
 
-  const sinφ1 = Math.sin(φ1);
-  const cosφ1 = Math.cos(φ1);
-  const sinδ = Math.sin(δ);
-  const cosδ = Math.cos(δ);
-  const sinθ = Math.sin(θ);
-  const cosθ = Math.cos(θ);
+  const sinLat1 = Math.sin(lat1);
+  const cosLat1 = Math.cos(lat1);
+  const sinAng = Math.sin(angDist);
+  const cosAng = Math.cos(angDist);
 
-  const φ2 = Math.asin(
-    sinφ1 * cosδ + cosφ1 * sinδ * cosθ
+  const lat2 = Math.asin(
+    sinLat1 * cosAng + cosLat1 * sinAng * Math.cos(brng)
   );
 
-  const λ2 =
-    λ1 +
+  const lon2 =
+    lon1 +
     Math.atan2(
-      sinθ * sinδ * cosφ1,
-      cosδ - sinφ1 * Math.sin(φ2)
+      Math.sin(brng) * sinAng * cosLat1,
+      cosAng - sinLat1 * Math.sin(lat2)
     );
 
-  return {
-    lat: φ2 * RAD2DEG,
-    lon: ((λ2 * RAD2DEG + 540) % 360) - 180
-  };
+  let lonDeg2 = lon2 * RAD2DEG;
+  lonDeg2 = ((lonDeg2 + 540) % 360) - 180;
+
+  return { lat: lat2 * RAD2DEG, lon: lonDeg2 };
 }
 
-class TileCache {
-  constructor({ maxTiles = 256 } = {}) {
-    this.maxTiles = maxTiles;
-    this.tiles = new Map();      // key -> tile
+function effectiveEarthRadius(k = 0.13) {
+  return EARTH_RADIUS_M / (1 - k);
+}
+
+function curvatureDrop(distM, k = 0.13) {
+  const reff = effectiveEarthRadius(k);
+  return (distM * distM) / (2 * reff);
+}
+
+class TerrariumTileCache {
+  constructor(options = {}) {
+    this.tileUrlTemplate =
+      options.tileUrlTemplate ||
+      "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
+
+    this.maxTiles = options.maxTiles || 384;
+    this.tiles = new Map();      // key -> { imageData }
     this.pending = new Map();    // key -> Promise
     this.sampleCache = new Map();// key -> elevation
-  }
-
-  _touch(map, key, value) {
-    map.delete(key);
-    map.set(key, value);
-  }
-
-  _evictIfNeeded() {
-    while (this.tiles.size > this.maxTiles) {
-      const oldestKey = this.tiles.keys().next().value;
-      this.tiles.delete(oldestKey);
-
-      // neteja també mostres d'aquest tile
-      const prefix = oldestKey + ":";
-      for (const k of this.sampleCache.keys()) {
-        if (k.startsWith(prefix)) this.sampleCache.delete(k);
-      }
-    }
   }
 
   _tileKey(z, x, y) {
@@ -81,8 +74,28 @@ class TileCache {
     return `${z}/${x}/${y}:${px},${py}`;
   }
 
-  _tileUrl(z, x, y) {
-    return `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
+  _touch(map, key, value) {
+    map.delete(key);
+    map.set(key, value);
+  }
+
+  _evict() {
+    while (this.tiles.size > this.maxTiles) {
+      const oldestKey = this.tiles.keys().next().value;
+      this.tiles.delete(oldestKey);
+
+      const prefix = oldestKey + ":";
+      for (const k of this.sampleCache.keys()) {
+        if (k.startsWith(prefix)) this.sampleCache.delete(k);
+      }
+    }
+  }
+
+  _makeUrl(z, x, y) {
+    return this.tileUrlTemplate
+      .replace("{z}", z)
+      .replace("{x}", x)
+      .replace("{y}", y);
   }
 
   async _loadTile(z, x, y) {
@@ -98,11 +111,11 @@ class TileCache {
       return this.pending.get(key);
     }
 
-    const promise = (async () => {
+    const p = (async () => {
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.decoding = "async";
-      img.src = this._tileUrl(z, x, y);
+      img.src = this._makeUrl(z, x, y);
       await img.decode();
 
       const canvas = document.createElement("canvas");
@@ -111,23 +124,23 @@ class TileCache {
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       ctx.drawImage(img, 0, 0);
 
-      const data = ctx.getImageData(0, 0, 256, 256);
-      const tile = { data };
+      const tile = {
+        imageData: ctx.getImageData(0, 0, 256, 256)
+      };
 
       this._touch(this.tiles, key, tile);
-      this._evictIfNeeded();
       this.pending.delete(key);
-
+      this._evict();
       return tile;
     })();
 
-    this.pending.set(key, promise);
-    return promise;
+    this.pending.set(key, p);
+    return p;
   }
 
-  async prefetchTiles(tileList) {
+  async prefetchTiles(list) {
     const uniq = new Map();
-    for (const t of tileList) {
+    for (const t of list) {
       uniq.set(this._tileKey(t.z, t.x, t.y), t);
     }
     await Promise.all(
@@ -135,8 +148,8 @@ class TileCache {
     );
   }
 
-  async getElevation(lat, lon, z) {
-    const t = lonLatToTile(lon, lat, z);
+  async getElevation(lat, lon, z = 12) {
+    const t = lonLatToTileXY(lon, lat, z);
     const tx = Math.floor(t.x);
     const ty = Math.floor(t.y);
     const px = Math.max(0, Math.min(255, Math.floor((t.x - tx) * 256)));
@@ -148,7 +161,7 @@ class TileCache {
     }
 
     const tile = await this._loadTile(z, tx, ty);
-    const d = tile.data.data;
+    const d = tile.imageData.data;
     const i = (py * 256 + px) * 4;
     const elev = terrariumHeight(d[i], d[i + 1], d[i + 2]);
 
@@ -158,20 +171,20 @@ class TileCache {
 }
 
 export class HorizonEngine {
-  constructor(opts = {}) {
-    this.zoom = opts.tileZoom ?? 12;
-    this.observerHeight = opts.observerHeight ?? 1.7;
-    this.tileCache = new TileCache({
-      maxTiles: opts.maxTiles ?? 256
-    });
+  constructor(options = {}) {
+    this.tileZoom = options.tileZoom || 12;
+    this.observerHeightM = options.observerHeightM ?? 1.7;
+    this.refractionK = options.refractionK ?? 0.13;
+    this.tileCache =
+      options.tileCache || new TerrariumTileCache(options.tileOptions || {});
   }
 
   buildDistances(maxDistM) {
-    const d = [];
-    for (let x = 100; x < 5000; x += 100) d.push(x);
-    for (let x = 5000; x < 20000; x += 250) d.push(x);
-    for (let x = 20000; x <= maxDistM; x += 1000) d.push(x);
-    return d;
+    const out = [];
+    for (let d = 100; d < 5000; d += 100) out.push(d);
+    for (let d = 5000; d < 20000; d += 250) out.push(d);
+    for (let d = 20000; d <= maxDistM; d += 1000) out.push(d);
+    return out;
   }
 
   buildRayGeometry({ lat, lon, centerAzDeg, fovDeg, samples, distances }) {
@@ -187,12 +200,12 @@ export class HorizonEngine {
 
       for (let j = 0; j < distances.length; j++) {
         const dist = distances[j];
-        const p = destination(lat, lon, az, dist);
+        const p = destinationPoint(lat, lon, az, dist);
         pts[j] = { lat: p.lat, lon: p.lon, dist };
 
-        const t = lonLatToTile(p.lon, p.lat, this.zoom);
+        const t = lonLatToTileXY(p.lon, p.lat, this.tileZoom);
         tilesNeeded.push({
-          z: this.zoom,
+          z: this.tileZoom,
           x: Math.floor(t.x),
           y: Math.floor(t.y)
         });
@@ -207,16 +220,20 @@ export class HorizonEngine {
   async computeProfile({
     lat,
     lon,
+    observerAltM = null,   // altitud AMSL de l'usuari si la tens
     centerAzDeg = 270,
-    fovDeg = 60,
-    samples = 200,
+    fovDeg = 20,
+    samples = 240,
     maxDistM = 100000,
-    onProgress = null
+    onProgress = null,
   }) {
     const distances = this.buildDistances(maxDistM);
 
-    const ground = await this.tileCache.getElevation(lat, lon, this.zoom);
-    const obs = ground + this.observerHeight;
+    const ground = await this.tileCache.getElevation(lat, lon, this.tileZoom);
+    const obsAmsl =
+      Number.isFinite(observerAltM) && observerAltM > -100
+        ? observerAltM + this.observerHeightM
+        : ground + this.observerHeightM;
 
     const { az0, daz, rays, tilesNeeded } = this.buildRayGeometry({
       lat,
@@ -227,7 +244,6 @@ export class HorizonEngine {
       distances
     });
 
-    // Prefetch grossíssim abans del loop calent
     await this.tileCache.prefetchTiles(tilesNeeded);
 
     const alt = new Float32Array(samples);
@@ -238,9 +254,13 @@ export class HorizonEngine {
 
       for (let j = 0; j < pts.length; j++) {
         const p = pts[j];
-        const z = await this.tileCache.getElevation(p.lat, p.lon, this.zoom);
+        const z = await this.tileCache.getElevation(p.lat, p.lon, this.tileZoom);
 
-        const ang = Math.atan2(z - obs, p.dist) * RAD2DEG;
+        if (!Number.isFinite(z)) continue;
+
+        const drop = curvatureDrop(p.dist, this.refractionK);
+        const ang = Math.atan2(z - obsAmsl - drop, p.dist) * RAD2DEG;
+
         if (ang > maxAng) maxAng = ang;
       }
 
@@ -250,11 +270,26 @@ export class HorizonEngine {
         onProgress({
           done: i + 1,
           total: samples,
-          fraction: (i + 1) / samples
+          fraction: (i + 1) / samples,
         });
       }
     }
 
-    return { az0, daz, alt };
+    return {
+      az0,
+      daz,
+      alt,
+      meta: {
+        lat,
+        lon,
+        observerAltM,
+        centerAzDeg,
+        fovDeg,
+        samples,
+        maxDistM,
+        tileZoom: this.tileZoom,
+        refractionK: this.refractionK
+      }
+    };
   }
 }
