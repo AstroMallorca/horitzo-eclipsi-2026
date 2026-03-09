@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="ca">
 <head>
-  <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
   <script>
 console.error("🚨 VISOR NOU CARREGAT");
 </script>
@@ -67,6 +66,10 @@ console.error("🚨 VISOR NOU CARREGAT");
   <div class="hud" id="hud">Carregant…</div>
 </div>
 <script>
+  // Definició EPSG:25831 (ETRS89 / UTM zone 31N)
+  proj4.defs("EPSG:25831",
+    "+proj=utm +zone=31 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs"
+  );
   <script type="module">
   import { HorizonEngine } from "./data/horizon_engine.js";
 
@@ -74,15 +77,9 @@ console.error("🚨 VISOR NOU CARREGAT");
     tileZoom: 12,
     observerHeightM: 1.7,
     refractionK: 0.13,
-    tileOptions: {
-      maxCache: 128
-    }
+    tileOptions: { maxTiles: 384 }
   });
 </script>
-  // Definició EPSG:25831 (ETRS89 / UTM zone 31N)
-  proj4.defs("EPSG:25831",
-    "+proj=utm +zone=31 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs"
-  );
 
   // Metas per dataset (MDT05 i MDT25)
   const __META = new Map(); // baseDir -> meta
@@ -101,8 +98,8 @@ console.error("🚨 VISOR NOU CARREGAT");
 async function testTerrariumHorizon() {
   const engine = window.__HORIZON_ENGINE__;
 
-  const lat = Number(URL_PARAMS.get("lat")) || 39.5696;
-  const lon = Number(URL_PARAMS.get("lon")) || 2.6502;
+  const lat = Number(PARAMS?.lat) || 39.5696;
+const lon = Number(PARAMS?.lon) || 2.6502;
 
   const centerAzDeg = 290;
   const fovDeg = 60;
@@ -399,7 +396,101 @@ if (azDeg >= DS05_AZ_MIN && azDeg <= DS05_AZ_MAX){
   }
 
 </script>
+<script type="module">
+  import { HorizonEngine } from "./data/horizon_engine.js";
 
+  window.__HORIZON_ENGINE__ = new HorizonEngine({
+    tileZoom: 12,
+    observerHeightM: 1.7,
+    refractionK: 0.13,
+    tileOptions: { maxTiles: 384 }
+  });
+</script>
+        <script>
+function profileAltAtAz(profile, azDeg){
+  if(!profile || !profile.alt || !Number.isFinite(profile.az0) || !Number.isFinite(profile.daz)) return NaN;
+
+  const arr = profile.alt;
+  const f = (azDeg - profile.az0) / profile.daz;
+
+  if (!Number.isFinite(f)) return NaN;
+
+  const i0 = Math.floor(f);
+  const i1 = i0 + 1;
+
+  if (i0 < 0 || i1 >= arr.length) return NaN;
+
+  const v0 = arr[i0];
+  const v1 = arr[i1];
+
+  if (!Number.isFinite(v0) || !Number.isFinite(v1)) return NaN;
+
+  const t = f - i0;
+  return v0 + (v1 - v0) * t;
+}
+
+function evaluateVisibilityFromProfile(profile, azDeg, altSolDeg){
+  const hHor = profileAltAtAz(profile, azDeg);
+
+  if (!Number.isFinite(hHor)) {
+    return { h_crit: NaN, altSol: altSolDeg, visible: null, delta: null };
+  }
+
+  const delta = altSolDeg - hHor;
+  const visible = delta > 0;
+
+  return { h_crit: hHor, altSol: altSolDeg, visible, delta };
+}
+
+let __hudReqId = 0;
+async function updateHudFromProfile(){
+  if(!sunAtCenter || !CURRENT_PROFILE) return;
+
+  const reqId = ++__hudReqId;
+
+  try{
+    const az = sunAtCenter.az;
+    const alt = sunAtCenter.alt;
+
+    const v = evaluateVisibilityFromProfile(CURRENT_PROFILE, az, alt);
+    if(reqId !== __hudReqId) return;
+
+    const SUN_R_DEG = 0.266;
+
+    let status = "—";
+    let hzTxt = "—";
+    let dTxt  = "—";
+
+    if (v.visible === null) {
+      status = "NoData";
+    } else {
+      const delta = v.delta;
+      const hHor = v.h_crit;
+
+      hzTxt = hHor.toFixed(2);
+      dTxt  = delta.toFixed(2);
+
+      if (delta >= SUN_R_DEG) status = "✅ Visible (100%)";
+      else if (delta <= -SUN_R_DEG) status = "❌ Tapat (0%)";
+      else {
+        const d = delta;
+        const R = SUN_R_DEG;
+        const A = R*R * Math.acos(-d/R) + d * Math.sqrt(Math.max(0, R*R - d*d));
+        const frac = A / (Math.PI * R*R);
+        const pct = Math.round(frac * 100);
+        status = `⚠️ Parcial (${pct}%)`;
+      }
+    }
+
+    hud.textContent =
+      `Az ${az.toFixed(1)}° · Sol ${alt.toFixed(2)}° · Horitzó ${hzTxt}° · Δ ${dTxt}° · ${status}`;
+
+  }catch(e){
+    if(reqId !== __hudReqId) return;
+    hud.textContent = `Error horitzó: ${e.message || e}`;
+  }
+}
+</script>
 <script src="js/astronomy.browser.min.js"></script>
 <script>
 /* ============
@@ -990,7 +1081,7 @@ PLOT = {
   drawSunPath(W,H, sunPts, VIEW.colSunPath);
   drawSunDiscs(W, H, MARKS);
 
-  if(sunAtCenter) updateHudFromTiles();
+   if(sunAtCenter) updateHudFromProfile();
   else hud.textContent = "Carregant…";
 }
 
@@ -999,48 +1090,57 @@ window.addEventListener("resize", render);
 
 (async ()=>{
   try{
-    hud.textContent = "Carregant horitzó real (tiles)…";
+    hud.textContent = "Calculant horitzó online…";
 
-       const TILE_AZ_MIN = 260.0;
-    const TILE_AZ_MAX = 300.0;
+    const engine = window.__HORIZON_ENGINE__;
+    if (!engine) throw new Error("HorizonEngine no carregat");
 
+    // rang dinàmic basat en C1 -> posta, tal com ja fa el visor
+    const FALLBACK_MIN = 260.0;
+    const FALLBACK_MAX = 300.0;
+    const margin = 1.0;
 
-    // Rang dinàmic: C1 -> posta (mar). I clamped als tiles disponibles.
-    const margin = 0.0; // si vols aire visual, puja a 0.5 o 1.0
+    const dynMin = (BASE_AZ && Number.isFinite(BASE_AZ.min)) ? BASE_AZ.min : FALLBACK_MIN;
+    const dynMax = (BASE_AZ && Number.isFinite(BASE_AZ.max)) ? BASE_AZ.max : FALLBACK_MAX;
 
-    // BASE_AZ ja està calculat més amunt com C1->posta (+ marge)
-    const dynMin = (BASE_AZ && Number.isFinite(BASE_AZ.min)) ? BASE_AZ.min : TILE_AZ_MIN;
-    const dynMax = (BASE_AZ && Number.isFinite(BASE_AZ.max)) ? BASE_AZ.max : TILE_AZ_MAX;
+    const azMin = dynMin - margin;
+    const azMax = dynMax + margin;
 
-    const azMin = Math.max(TILE_AZ_MIN, dynMin - margin);
-    const azMax = Math.min(TILE_AZ_MAX, dynMax + margin);
+    const centerAzDeg = (azMin + azMax) / 2;
+    const fovDeg = Math.max(4, azMax - azMin);
 
-    const daz = 1.0;
+    // resolució angular "alta" sense baixar qualitat visual
+    const samples = Math.max(220, Math.ceil(fovDeg * 10));
 
-
-    CURRENT_PROFILE = await buildHorizonProfileFromTiles(
-      PARAMS.lat, PARAMS.lon,
-      azMin, azMax, daz,
-      {
-        concurrency: 6,
-        progressive: true,
-        throttleRenderEvery: 20,
-        onProgress: (done,total) => {
-          hud.textContent = `Carregant horitzó real… ${Math.round(done*100/total)}%`;
-        }
+    const result = await engine.computeProfile({
+      lat: PARAMS.lat,
+      lon: PARAMS.lon,
+      observerAltM: Number.isFinite(PARAMS.alt) ? PARAMS.alt : null,
+      centerAzDeg,
+      fovDeg,
+      samples,
+      maxDistM: Math.max(20000, Math.min(200000, (PARAMS.rangeKm || 100) * 1000)),
+      onProgress: (p) => {
+        hud.textContent = `Calculant horitzó online… ${Math.round(p.fraction * 100)}%`;
       }
-    );
+    });
+
+    CURRENT_PROFILE = {
+      az0: result.az0,
+      daz: result.daz,
+      alt: Array.from(result.alt)
+    };
+
+    // opcional: omplir forats petits
+    CURRENT_PROFILE.alt = fillGapsLinear(CURRENT_PROFILE.alt, 6);
+
+    hud.textContent = "Horitzó carregat";
 
   }catch(e){
-    console.warn("Error carregant horitzó real", e);
+    console.warn("Error carregant horitzó online", e);
     CURRENT_PROFILE = null;
-    hud.textContent = `Error horitzó real: ${e.message || e}`;
+    hud.textContent = `Error horitzó online: ${e.message || e}`;
   }
-
-  // ✅ CHANGE: NO interpolar (no inventam). Si vols interpolar, descomenta:
-   if (CURRENT_PROFILE && Array.isArray(CURRENT_PROFILE.alt)) {
-     CURRENT_PROFILE.alt = fillGapsLinear(CURRENT_PROFILE.alt, 15); // <= 1.5°
-   }
 
   render();
 })();
