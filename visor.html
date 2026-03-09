@@ -67,6 +67,18 @@ console.error("🚨 VISOR NOU CARREGAT");
   <div class="hud" id="hud">Carregant…</div>
 </div>
 <script>
+  <script type="module">
+  import { HorizonEngine } from "./data/horizon_engine.js";
+
+  window.__HORIZON_ENGINE__ = new HorizonEngine({
+    tileZoom: 12,
+    observerHeightM: 1.7,
+    refractionK: 0.13,
+    tileOptions: {
+      maxCache: 128
+    }
+  });
+</script>
   // Definició EPSG:25831 (ETRS89 / UTM zone 31N)
   proj4.defs("EPSG:25831",
     "+proj=utm +zone=31 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs"
