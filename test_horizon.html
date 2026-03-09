@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Test Horizon</title>
+</head>
+
+<body>
+
+<h2>Test horitzó Terrarium</h2>
+
+<button onclick="runTest()">Calcular horitzó</button>
+
+<pre id="log"></pre>
+
+<script type="module">
+
+import { HorizonEngine } from "./data/horizon_engine.js";
+
+const log = document.getElementById("log");
+
+const engine = new HorizonEngine({
+  tileZoom: 12
+});
+
+window.runTest = async function() {
+
+  log.textContent = "Calculant...\n";
+
+  const result = await engine.computeProfile({
+    lat: 39.5696,
+    lon: 2.6502,
+    centerAzDeg: 290,
+    fovDeg: 60,
+    samples: 200,
+    maxDistM: 80000,
+    distanceStepM: 500,
+    onProgress: p => {
+      log.textContent = "Progrés: " + Math.round(p.fraction*100) + "%";
+    }
+  });
+
+  console.log(result);
+
+  log.textContent += "\n\nFET!\n";
+  log.textContent += "Mostres: " + result.alt.length;
+
+};
+
+</script>
+
+</body>
+</html>
