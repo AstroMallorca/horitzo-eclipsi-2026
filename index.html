@@ -349,15 +349,15 @@ async function computeObstacleSunset(lat, lon, alt, seaSetTime){
   if (!engine || !seaSetTime) return null;
 
   const obs = new Astronomy.Observer(lat, lon, alt);
-
   const seaHor = sunHorAtTimeForIndex(seaSetTime, obs);
   if (!seaHor || !Number.isFinite(seaHor.az)) return null;
 
-  // Calculam un petit sector al voltant de la posta
+  // A l’index no fa falta tanta precisió com al visor
+  // Només volem una estimació ràpida de la posta local
   const centerAzDeg = seaHor.az;
-  const fovDeg = 24;
-  const samples = 240;
-  const maxDistM = 100000;
+  const fovDeg = 10;       // abans era molt gran
+  const samples = 80;      // abans era massa alt
+  const maxDistM = 50000;  // suficient per la posta local
 
   const result = await engine.computeProfile({
     lat,
@@ -375,8 +375,6 @@ async function computeObstacleSunset(lat, lon, alt, seaSetTime){
     alt: Array.from(result.alt)
   };
 
-  // Cerca del moment en què el límit superior del Sol toca l'horitzó local
-  // center_alt <= horizon_alt - 0.266
   const SUN_R_DEG = 0.266;
 
   let t0 = seaSetTime;
@@ -389,13 +387,13 @@ async function computeObstacleSunset(lat, lon, alt, seaSetTime){
 
   if (!d0) return null;
 
-  // escanejam 90 min abans fins 20 min després de la posta astronòmica
-  const startMs = d0.getTime() - 90 * 60 * 1000;
-  const endMs   = d0.getTime() + 20 * 60 * 1000;
+  // Cerca més curta i més lleugera
+  const startMs = d0.getTime() - 45 * 60 * 1000;
+  const endMs   = d0.getTime() + 10 * 60 * 1000;
 
   let prev = null;
 
-  for(let ms = startMs; ms <= endMs; ms += 10 * 1000){
+  for(let ms = startMs; ms <= endMs; ms += 15 * 1000){
     const time = Astronomy.MakeTime(new Date(ms));
     const s = sunHorAtTimeForIndex(time, obs);
     if (!s) continue;
@@ -403,6 +401,7 @@ async function computeObstacleSunset(lat, lon, alt, seaSetTime){
     const hHor = profileAltAtAz(profile, s.az);
     if (!Number.isFinite(hHor)) continue;
 
+    // límit superior del Sol tocant l’horitzó local
     const delta = s.alt - (hHor - SUN_R_DEG);
 
     const cur = { time, delta, az: s.az, alt: s.alt, hHor };
@@ -459,7 +458,7 @@ function computeLocalEclipseSummary(lat, lon, alt){
   const hMax = sunHorAtTimeForIndex(max, obs);
   const hC3 = sunHorAtTimeForIndex(c3, obs);
   const hC4 = sunHorAtTimeForIndex(c4, obs);
-  const hSet = sunHorAtTimeForIndex(sunset?.time || null, obs);
+  const hSet = sunHorAtTimeForIndex(sunset || null, obs);
 
   let durationSec = null;
   if (c2 && c3) {
@@ -473,7 +472,7 @@ function computeLocalEclipseSummary(lat, lon, alt){
     obscuration: Number.isFinite(ecl.obscuration) ? ecl.obscuration : null,
     magnitude: Number.isFinite(ecl.magnitude) ? ecl.magnitude : null,
     c1, c2, max, c3, c4,
-    sunset: sunset?.time || null,
+    sunset: sunset || null,
     hC1, hC2, hMax, hC3, hC4, hSet,
     durationSec
   };
@@ -499,9 +498,13 @@ function renderLocalEclipseSummary(lat, lon, alt, info, obstacleSet){
   const altMax = info.hMax && Number.isFinite(info.hMax.alt) ? `${info.hMax.alt.toFixed(1)}°` : "—";
   const azMax  = info.hMax && Number.isFinite(info.hMax.az)  ? `${info.hMax.az.toFixed(1)}°`  : "—";
 
-  const obstacleTxt = obstacleSet
-    ? `${fmtTimeAstroSec(obstacleSet.time)} · alt ${obstacleSet.alt.toFixed(1)}° · az ${obstacleSet.az.toFixed(1)}° · horitzó ${obstacleSet.hHor.toFixed(1)}°`
-    : "Calculant…";
+ let obstacleTxt = "Calculant…";
+
+if (obstacleSet === null) {
+  obstacleTxt = "No disponible";
+} else if (obstacleSet) {
+  obstacleTxt = `${fmtTimeAstroSec(obstacleSet.time)} · alt ${obstacleSet.alt.toFixed(1)}° · az ${obstacleSet.az.toFixed(1)}° · horitzó ${obstacleSet.hHor.toFixed(1)}°`;
+}
 
   eclipseInfo.innerHTML = `
     <div><b>📍 Coordenades:</b> ${lat.toFixed(5)}, ${lon.toFixed(5)} · <b>Altitud:</b> ${Math.round(alt)} m</div>
@@ -536,7 +539,9 @@ async function refreshEclipseSummary(lat, lon, alt){
 
   try{
     const info = computeLocalEclipseSummary(lat, lon, alt);
-    renderLocalEclipseSummary(lat, lon, alt, info, null);
+
+    // primer pintam la targeta amb la posta local pendent
+    renderLocalEclipseSummary(lat, lon, alt, info, undefined);
 
     if(!info){
       eclipseCard.style.display = "none";
@@ -547,7 +552,8 @@ async function refreshEclipseSummary(lat, lon, alt){
 
     if(reqId !== __summaryReqId) return;
 
-    renderLocalEclipseSummary(lat, lon, alt, info, obstacleSet);
+    // si no troba res, passam null explícit
+    renderLocalEclipseSummary(lat, lon, alt, info, obstacleSet ?? null);
 
   }catch(err){
     console.warn("No s'ha pogut calcular el resum de l'eclipsi", err);
@@ -708,13 +714,19 @@ enableGoIfReady();
   });
 
   // Validació live dels inputs
+  let __summaryTimer = null;
 [latEl, lonEl, altEl, rangeEl, dateEl, centerUtcEl].forEach(el => {
   el.addEventListener("input", () => {
     if(chosen === "manual"){
       const v = validateManual();
       if(v.ok){
         setStatus("Dades manuals OK.", true);
-        refreshEclipseSummary(v.lat, v.lon, v.alt);
+
+        clearTimeout(__summaryTimer);
+        __summaryTimer = setTimeout(() => {
+          refreshEclipseSummary(v.lat, v.lon, v.alt);
+        }, 350);
+
       } else {
         setStatus("Introdueix lat/lon vàlids.", false);
         eclipseCard.style.display = "none";
