@@ -19,6 +19,16 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="js/astronomy.browser.min.js"></script>
+  <script type="module">
+  import { HorizonEngine } from "./data/horizon_engine.js";
+
+  window.__INDEX_HORIZON_ENGINE__ = new HorizonEngine({
+    tileZoom: 12,
+    observerHeightM: 1.7,
+    refractionK: 0.13,
+    tileOptions: { maxTiles: 256 }
+  });
+</script>
   <style>
     :root{
       --bg:#000;
@@ -257,25 +267,26 @@ closeMapModal();
 const eclipseCard = document.getElementById("eclipseCard");
 const eclipseInfo = document.getElementById("eclipseInfo");
 
-function fmtTimeAstro(x){
+let __summaryReqId = 0;
+
+function fmtTimeAstroSec(x){
   if(!x) return "—";
   let t = x;
 
   if (x.time) t = x.time;
-  if (t instanceof Date) return t.toISOString().slice(11,16);
-  if (t.date instanceof Date) return t.date.toISOString().slice(11,16);
+
+  if (t instanceof Date) return t.toISOString().slice(11,19);
+  if (t.date instanceof Date) return t.date.toISOString().slice(11,19);
   if (typeof t.toDate === "function") {
     const d = t.toDate();
-    return d instanceof Date ? d.toISOString().slice(11,16) : "—";
+    return d instanceof Date ? d.toISOString().slice(11,19) : "—";
   }
   return "—";
 }
 
 function fmtDurSeconds(sec){
   if(!Number.isFinite(sec) || sec <= 0) return "—";
-  const m = Math.floor(sec / 60);
-  const s = sec - m * 60;
-  return `${m}m ${s.toFixed(1)}s`;
+  return `${sec.toFixed(1)} s`;
 }
 
 function sunHorAtTimeForIndex(x, obs){
@@ -292,8 +303,8 @@ function sunHorAtTimeForIndex(x, obs){
   const hor = Astronomy.Horizon(t, obs, eq.ra, eq.dec, "normal");
 
   let az = hor.azimuth;
-  if(az < 0) az += 360;
-  if(az >= 360) az -= 360;
+  if (az < 0) az += 360;
+  if (az >= 360) az -= 360;
 
   return {
     alt: hor.altitude,
@@ -309,6 +320,121 @@ function classifyLocalEclipse(ecl){
   if (ecl.partial_begin || ecl.partial_end) return "Eclipsi parcial";
 
   return "Eclipsi solar";
+}
+
+function profileAltAtAz(profile, azDeg){
+  if(!profile || !profile.alt || !Number.isFinite(profile.az0) || !Number.isFinite(profile.daz)) return NaN;
+
+  const arr = profile.alt;
+  const f = (azDeg - profile.az0) / profile.daz;
+
+  if (!Number.isFinite(f)) return NaN;
+
+  const i0 = Math.floor(f);
+  const i1 = i0 + 1;
+
+  if (i0 < 0 || i1 >= arr.length) return NaN;
+
+  const v0 = arr[i0];
+  const v1 = arr[i1];
+
+  if (!Number.isFinite(v0) || !Number.isFinite(v1)) return NaN;
+
+  const t = f - i0;
+  return v0 + (v1 - v0) * t;
+}
+
+async function computeObstacleSunset(lat, lon, alt, seaSetTime){
+  const engine = window.__INDEX_HORIZON_ENGINE__;
+  if (!engine || !seaSetTime) return null;
+
+  const obs = new Astronomy.Observer(lat, lon, alt);
+
+  const seaHor = sunHorAtTimeForIndex(seaSetTime, obs);
+  if (!seaHor || !Number.isFinite(seaHor.az)) return null;
+
+  // Calculam un petit sector al voltant de la posta
+  const centerAzDeg = seaHor.az;
+  const fovDeg = 24;
+  const samples = 240;
+  const maxDistM = 100000;
+
+  const result = await engine.computeProfile({
+    lat,
+    lon,
+    observerAltM: alt,
+    centerAzDeg,
+    fovDeg,
+    samples,
+    maxDistM
+  });
+
+  const profile = {
+    az0: result.az0,
+    daz: result.daz,
+    alt: Array.from(result.alt)
+  };
+
+  // Cerca del moment en què el límit superior del Sol toca l'horitzó local
+  // center_alt <= horizon_alt - 0.266
+  const SUN_R_DEG = 0.266;
+
+  let t0 = seaSetTime;
+  if (t0.time) t0 = t0.time;
+
+  let d0 = null;
+  if (t0 instanceof Date) d0 = t0;
+  else if (t0.date instanceof Date) d0 = t0.date;
+  else if (typeof t0.toDate === "function") d0 = t0.toDate();
+
+  if (!d0) return null;
+
+  // escanejam 90 min abans fins 20 min després de la posta astronòmica
+  const startMs = d0.getTime() - 90 * 60 * 1000;
+  const endMs   = d0.getTime() + 20 * 60 * 1000;
+
+  let prev = null;
+
+  for(let ms = startMs; ms <= endMs; ms += 10 * 1000){
+    const time = Astronomy.MakeTime(new Date(ms));
+    const s = sunHorAtTimeForIndex(time, obs);
+    if (!s) continue;
+
+    const hHor = profileAltAtAz(profile, s.az);
+    if (!Number.isFinite(hHor)) continue;
+
+    const delta = s.alt - (hHor - SUN_R_DEG);
+
+    const cur = { time, delta, az: s.az, alt: s.alt, hHor };
+
+    if (prev && prev.delta > 0 && cur.delta <= 0){
+      const dA = prev.delta;
+      const dB = cur.delta;
+      const f = dA / (dA - dB);
+
+      const tPrev = prev.time.toDate ? prev.time.toDate() : (prev.time.date || null);
+      const tCur  = cur.time.toDate ? cur.time.toDate() : (cur.time.date || null);
+
+      if (tPrev && tCur){
+        const hitDate = new Date(tPrev.getTime() + f * (tCur.getTime() - tPrev.getTime()));
+        const hitAz = prev.az + f * (cur.az - prev.az);
+        const hitAlt = prev.alt + f * (cur.alt - prev.alt);
+        const hitHor = prev.hHor + f * (cur.hHor - prev.hHor);
+
+        return {
+          time: Astronomy.MakeTime(hitDate),
+          az: hitAz,
+          alt: hitAlt,
+          hHor: hitHor,
+          profile
+        };
+      }
+    }
+
+    prev = cur;
+  }
+
+  return null;
 }
 
 function computeLocalEclipseSummary(lat, lon, alt){
@@ -346,13 +472,14 @@ function computeLocalEclipseSummary(lat, lon, alt){
     kind: classifyLocalEclipse(ecl),
     obscuration: Number.isFinite(ecl.obscuration) ? ecl.obscuration : null,
     magnitude: Number.isFinite(ecl.magnitude) ? ecl.magnitude : null,
-    c1, c2, max, c3, c4, sunset: sunset?.time || null,
+    c1, c2, max, c3, c4,
+    sunset: sunset?.time || null,
     hC1, hC2, hMax, hC3, hC4, hSet,
     durationSec
   };
 }
 
-function renderLocalEclipseSummary(lat, lon, alt, info){
+function renderLocalEclipseSummary(lat, lon, alt, info, obstacleSet){
   if(!info){
     eclipseCard.style.display = "none";
     eclipseInfo.innerHTML = "—";
@@ -372,32 +499,56 @@ function renderLocalEclipseSummary(lat, lon, alt, info){
   const altMax = info.hMax && Number.isFinite(info.hMax.alt) ? `${info.hMax.alt.toFixed(1)}°` : "—";
   const azMax  = info.hMax && Number.isFinite(info.hMax.az)  ? `${info.hMax.az.toFixed(1)}°`  : "—";
 
+  const obstacleTxt = obstacleSet
+    ? `${fmtTimeAstroSec(obstacleSet.time)} · alt ${obstacleSet.alt.toFixed(1)}° · az ${obstacleSet.az.toFixed(1)}° · horitzó ${obstacleSet.hHor.toFixed(1)}°`
+    : "Calculant…";
+
   eclipseInfo.innerHTML = `
     <div><b>📍 Coordenades:</b> ${lat.toFixed(5)}, ${lon.toFixed(5)} · <b>Altitud:</b> ${Math.round(alt)} m</div>
     <div><b>🌘 Tipus:</b> ${info.kind}</div>
     <div><b>🔭 Magnitud:</b> ${mag}</div>
     <div><b>🌑 Obscuració:</b> ${obsc}</div>
     <div><b>⏱ Durada de totalitat/anularitat:</b> ${fmtDurSeconds(info.durationSec)}</div>
+
     <div style="margin-top:8px;"><b>Fases (UTC):</b></div>
-    <div>C1: ${fmtTimeAstro(info.c1)}${info.hC1 ? ` · alt ${info.hC1.alt.toFixed(1)}° · az ${info.hC1.az.toFixed(1)}°` : ""}</div>
-    <div>C2: ${fmtTimeAstro(info.c2)}${info.hC2 ? ` · alt ${info.hC2.alt.toFixed(1)}° · az ${info.hC2.az.toFixed(1)}°` : ""}</div>
-    <div>Màxim: ${fmtTimeAstro(info.max)}${info.hMax ? ` · alt ${info.hMax.alt.toFixed(1)}° · az ${info.hMax.az.toFixed(1)}°` : ""}</div>
-    <div>C3: ${fmtTimeAstro(info.c3)}${info.hC3 ? ` · alt ${info.hC3.alt.toFixed(1)}° · az ${info.hC3.az.toFixed(1)}°` : ""}</div>
-    <div>C4: ${fmtTimeAstro(info.c4)}${info.hC4 ? ` · alt ${info.hC4.alt.toFixed(1)}° · az ${info.hC4.az.toFixed(1)}°` : ""}</div>
-    <div>Posta de sol: ${fmtTimeAstro(info.sunset)}${info.hSet ? ` · alt ${info.hSet.alt.toFixed(1)}° · az ${info.hSet.az.toFixed(1)}°` : ""}</div>
+    <div>C1: ${fmtTimeAstroSec(info.c1)}${info.hC1 ? ` · alt ${info.hC1.alt.toFixed(1)}° · az ${info.hC1.az.toFixed(1)}°` : ""}</div>
+    <div>C2: ${fmtTimeAstroSec(info.c2)}${info.hC2 ? ` · alt ${info.hC2.alt.toFixed(1)}° · az ${info.hC2.az.toFixed(1)}°` : ""}</div>
+    <div>Màxim: ${fmtTimeAstroSec(info.max)}${info.hMax ? ` · alt ${info.hMax.alt.toFixed(1)}° · az ${info.hMax.az.toFixed(1)}°` : ""}</div>
+    <div>C3: ${fmtTimeAstroSec(info.c3)}${info.hC3 ? ` · alt ${info.hC3.alt.toFixed(1)}° · az ${info.hC3.az.toFixed(1)}°` : ""}</div>
+    <div>C4: ${fmtTimeAstroSec(info.c4)}${info.hC4 ? ` · alt ${info.hC4.alt.toFixed(1)}° · az ${info.hC4.az.toFixed(1)}°` : ""}</div>
+
+    <div style="margin-top:8px;"><b>🌅 Posta astronòmica (horitzó marí):</b>
+      ${fmtTimeAstroSec(info.sunset)}${info.hSet ? ` · alt ${info.hSet.alt.toFixed(1)}° · az ${info.hSet.az.toFixed(1)}°` : ""}
+    </div>
+
+    <div><b>⛰️ Posta local (relleu/obstacles):</b> ${obstacleTxt}</div>
+
     <div style="margin-top:8px;"><b>☀️ Sol al màxim:</b> altura ${altMax} · azimut ${azMax}</div>
+
     <div style="margin-top:8px; opacity:.85;">
-      <i>Nota:</i> aquesta versió mostra la informació local de l’eclipsi calculada amb Astronomy.js.
-      Dades avançades tipus amplada de banda, profunditat umbral, velocitat de l’ombra o distància a la línia central
-      no estan disponibles directament amb el codi actual.
+      <i>Nota:</i> la posta local té en compte el relleu/obstacles al sector de posta.
     </div>
   `;
 }
 
-function refreshEclipseSummary(lat, lon, alt){
+async function refreshEclipseSummary(lat, lon, alt){
+  const reqId = ++__summaryReqId;
+
   try{
     const info = computeLocalEclipseSummary(lat, lon, alt);
-    renderLocalEclipseSummary(lat, lon, alt, info);
+    renderLocalEclipseSummary(lat, lon, alt, info, null);
+
+    if(!info){
+      eclipseCard.style.display = "none";
+      return;
+    }
+
+    const obstacleSet = await computeObstacleSunset(lat, lon, alt, info.sunset);
+
+    if(reqId !== __summaryReqId) return;
+
+    renderLocalEclipseSummary(lat, lon, alt, info, obstacleSet);
+
   }catch(err){
     console.warn("No s'ha pogut calcular el resum de l'eclipsi", err);
     eclipseCard.style.display = "none";
