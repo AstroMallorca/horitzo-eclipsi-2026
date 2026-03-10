@@ -179,13 +179,20 @@ export class HorizonEngine {
       options.tileCache || new TerrariumTileCache(options.tileOptions || {});
   }
 
-  buildDistances(maxDistM) {
-    const out = [];
-    for (let d = 100; d < 5000; d += 100) out.push(d);
-    for (let d = 5000; d < 20000; d += 250) out.push(d);
-    for (let d = 20000; d <= maxDistM; d += 1000) out.push(d);
-    return out;
-  }
+buildDistances(maxDistM) {
+  const out = [];
+
+  // molt més detall a prop
+  for (let d = 50; d < 4000; d += 50) out.push(d);
+
+  // detall mitjà a distància intermèdia
+  for (let d = 4000; d < 20000; d += 200) out.push(d);
+
+  // lluny ja podem anar més gros
+  for (let d = 20000; d <= maxDistM; d += 1000) out.push(d);
+
+  return out;
+}
 
   buildRayGeometry({ lat, lon, centerAzDeg, fovDeg, samples, distances }) {
     const az0 = centerAzDeg - fovDeg / 2;
