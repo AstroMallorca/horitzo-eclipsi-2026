@@ -18,7 +18,7 @@
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
+<script src="js/astronomy.browser.min.js"></script>
   <style>
     :root{
       --bg:#000;
@@ -172,6 +172,10 @@
       <b>Privacitat:</b> la ubicació només s’usa dins el teu dispositiu. Si no vols donar permís, usa el mode manual.
     </div>
   </div>
+  <div class="card" id="eclipseCard" style="display:none;">
+  <div class="title" style="font-size:18px; margin:0 0 10px;">Resum de l’eclipsi al punt seleccionat</div>
+  <div id="eclipseInfo" class="hint" style="font-size:15px; line-height:1.5;">—</div>
+</div>
 </div>
 <div id="mapModal" class="modal ocult" aria-hidden="true">
   <div class="modalCard">
@@ -229,11 +233,12 @@ if (!btnMap || !mapModal || !mapOk || !mapCancel || !mapClose || !mapInfo) {
     latEl.value = picked.lat.toFixed(6);
     lonEl.value = picked.lon.toFixed(6);
     altEl.value = String(Math.round(picked.alt ?? 0));
-    chosen = "manual";
-    manualBox.style.display = "block";
-    setStatus("Localització del mapa aplicada. Dades manuals OK.", true);
-    enableGoIfReady();
-    closeMapModal();
+chosen = "manual";
+manualBox.style.display = "block";
+setStatus("Localització del mapa aplicada. Dades manuals OK.", true);
+refreshEclipseSummary(picked.lat, picked.lon, picked.alt ?? 0);
+enableGoIfReady();
+closeMapModal();
   });
 }
   let chosen = null; // "gps" | "manual"
@@ -249,7 +254,155 @@ if (!btnMap || !mapModal || !mapOk || !mapCancel || !mapClose || !mapInfo) {
     const x = parseFloat(String(v).replace(",", "."));
     return Number.isFinite(x) ? x : null;
   }
+const eclipseCard = document.getElementById("eclipseCard");
+const eclipseInfo = document.getElementById("eclipseInfo");
 
+function fmtTimeAstro(x){
+  if(!x) return "—";
+  let t = x;
+
+  if (x.time) t = x.time;
+  if (t instanceof Date) return t.toISOString().slice(11,16);
+  if (t.date instanceof Date) return t.date.toISOString().slice(11,16);
+  if (typeof t.toDate === "function") {
+    const d = t.toDate();
+    return d instanceof Date ? d.toISOString().slice(11,16) : "—";
+  }
+  return "—";
+}
+
+function fmtDurSeconds(sec){
+  if(!Number.isFinite(sec) || sec <= 0) return "—";
+  const m = Math.floor(sec / 60);
+  const s = sec - m * 60;
+  return `${m}m ${s.toFixed(1)}s`;
+}
+
+function sunHorAtTimeForIndex(x, obs){
+  if(!x) return null;
+
+  let t = x;
+  if (x.time) t = x.time;
+  if (t instanceof Date) t = Astronomy.MakeTime(t);
+  if (t.date instanceof Date) t = Astronomy.MakeTime(t.date);
+
+  if (!t) return null;
+
+  const eq = Astronomy.Equator("Sun", t, obs, true, true);
+  const hor = Astronomy.Horizon(t, obs, eq.ra, eq.dec, "normal");
+
+  let az = hor.azimuth;
+  if(az < 0) az += 360;
+  if(az >= 360) az -= 360;
+
+  return {
+    alt: hor.altitude,
+    az
+  };
+}
+
+function classifyLocalEclipse(ecl){
+  if(!ecl) return "No disponible";
+
+  if (ecl.total_begin && ecl.total_end) return "Eclipsi total";
+  if (ecl.annular_begin && ecl.annular_end) return "Eclipsi anular";
+  if (ecl.partial_begin || ecl.partial_end) return "Eclipsi parcial";
+
+  return "Eclipsi solar";
+}
+
+function computeLocalEclipseSummary(lat, lon, alt){
+  const obs = new Astronomy.Observer(lat, lon, alt);
+
+  const date = new Date(Date.UTC(2026, 7, 12, 0, 0, 0));
+  const ecl = Astronomy.SearchLocalSolarEclipse(date, obs);
+
+  if(!ecl) return null;
+
+  const dayMidUTC = new Date(Date.UTC(2026, 7, 12, 12, 0, 0));
+  const sunset = Astronomy.SearchAltitude("Sun", obs, -1, dayMidUTC, 1, -0.833);
+
+  const c1 = ecl.partial_begin?.time || null;
+  const c2 = ecl.total_begin?.time || ecl.annular_begin?.time || null;
+  const max = ecl.peak?.time || null;
+  const c3 = ecl.total_end?.time || ecl.annular_end?.time || null;
+  const c4 = ecl.partial_end?.time || null;
+
+  const hC1 = sunHorAtTimeForIndex(c1, obs);
+  const hC2 = sunHorAtTimeForIndex(c2, obs);
+  const hMax = sunHorAtTimeForIndex(max, obs);
+  const hC3 = sunHorAtTimeForIndex(c3, obs);
+  const hC4 = sunHorAtTimeForIndex(c4, obs);
+  const hSet = sunHorAtTimeForIndex(sunset?.time || null, obs);
+
+  let durationSec = null;
+  if (c2 && c3) {
+    const d2 = c2.date instanceof Date ? c2.date : (typeof c2.toDate === "function" ? c2.toDate() : null);
+    const d3 = c3.date instanceof Date ? c3.date : (typeof c3.toDate === "function" ? c3.toDate() : null);
+    if (d2 && d3) durationSec = (d3.getTime() - d2.getTime()) / 1000;
+  }
+
+  return {
+    kind: classifyLocalEclipse(ecl),
+    obscuration: Number.isFinite(ecl.obscuration) ? ecl.obscuration : null,
+    magnitude: Number.isFinite(ecl.magnitude) ? ecl.magnitude : null,
+    c1, c2, max, c3, c4, sunset: sunset?.time || null,
+    hC1, hC2, hMax, hC3, hC4, hSet,
+    durationSec
+  };
+}
+
+function renderLocalEclipseSummary(lat, lon, alt, info){
+  if(!info){
+    eclipseCard.style.display = "none";
+    eclipseInfo.innerHTML = "—";
+    return;
+  }
+
+  eclipseCard.style.display = "block";
+
+  const obsc = Number.isFinite(info.obscuration)
+    ? `${(info.obscuration * 100).toFixed(2)}%`
+    : "—";
+
+  const mag = Number.isFinite(info.magnitude)
+    ? info.magnitude.toFixed(4)
+    : "—";
+
+  const altMax = info.hMax && Number.isFinite(info.hMax.alt) ? `${info.hMax.alt.toFixed(1)}°` : "—";
+  const azMax  = info.hMax && Number.isFinite(info.hMax.az)  ? `${info.hMax.az.toFixed(1)}°`  : "—";
+
+  eclipseInfo.innerHTML = `
+    <div><b>📍 Coordenades:</b> ${lat.toFixed(5)}, ${lon.toFixed(5)} · <b>Altitud:</b> ${Math.round(alt)} m</div>
+    <div><b>🌘 Tipus:</b> ${info.kind}</div>
+    <div><b>🔭 Magnitud:</b> ${mag}</div>
+    <div><b>🌑 Obscuració:</b> ${obsc}</div>
+    <div><b>⏱ Durada de totalitat/anularitat:</b> ${fmtDurSeconds(info.durationSec)}</div>
+    <div style="margin-top:8px;"><b>Fases (UTC):</b></div>
+    <div>C1: ${fmtTimeAstro(info.c1)}${info.hC1 ? ` · alt ${info.hC1.alt.toFixed(1)}° · az ${info.hC1.az.toFixed(1)}°` : ""}</div>
+    <div>C2: ${fmtTimeAstro(info.c2)}${info.hC2 ? ` · alt ${info.hC2.alt.toFixed(1)}° · az ${info.hC2.az.toFixed(1)}°` : ""}</div>
+    <div>Màxim: ${fmtTimeAstro(info.max)}${info.hMax ? ` · alt ${info.hMax.alt.toFixed(1)}° · az ${info.hMax.az.toFixed(1)}°` : ""}</div>
+    <div>C3: ${fmtTimeAstro(info.c3)}${info.hC3 ? ` · alt ${info.hC3.alt.toFixed(1)}° · az ${info.hC3.az.toFixed(1)}°` : ""}</div>
+    <div>C4: ${fmtTimeAstro(info.c4)}${info.hC4 ? ` · alt ${info.hC4.alt.toFixed(1)}° · az ${info.hC4.az.toFixed(1)}°` : ""}</div>
+    <div>Posta de sol: ${fmtTimeAstro(info.sunset)}${info.hSet ? ` · alt ${info.hSet.alt.toFixed(1)}° · az ${info.hSet.az.toFixed(1)}°` : ""}</div>
+    <div style="margin-top:8px;"><b>☀️ Sol al màxim:</b> altura ${altMax} · azimut ${azMax}</div>
+    <div style="margin-top:8px; opacity:.85;">
+      <i>Nota:</i> aquesta versió mostra la informació local de l’eclipsi calculada amb Astronomy.js.
+      Dades avançades tipus amplada de banda, profunditat umbral, velocitat de l’ombra o distància a la línia central
+      no estan disponibles directament amb el codi actual.
+    </div>
+  `;
+}
+
+function refreshEclipseSummary(lat, lon, alt){
+  try{
+    const info = computeLocalEclipseSummary(lat, lon, alt);
+    renderLocalEclipseSummary(lat, lon, alt, info);
+  }catch(err){
+    console.warn("No s'ha pogut calcular el resum de l'eclipsi", err);
+    eclipseCard.style.display = "none";
+  }
+}
   function validateManual(){
     const lat = parseNum(latEl.value);
     const lon = parseNum(lonEl.value);
@@ -392,7 +545,8 @@ function initMapIfNeeded(){
         current.alt = (pos.coords.altitude == null) ? 0 : pos.coords.altitude;
 
         setStatus(`Ubicació OK: ${current.lat.toFixed(5)}, ${current.lon.toFixed(5)} (alt ${Math.round(current.alt)} m)`, true);
-        enableGoIfReady();
+refreshEclipseSummary(current.lat, current.lon, current.alt ?? 0);
+enableGoIfReady();
       },
       err => {
         setStatus("No s'ha pogut obtenir la ubicació. Usa el mode manual.", false);
@@ -403,16 +557,21 @@ function initMapIfNeeded(){
   });
 
   // Validació live dels inputs
-  [latEl, lonEl, altEl, rangeEl, dateEl, centerUtcEl].forEach(el => {
-    el.addEventListener("input", () => {
-      if(chosen === "manual"){
-        const v = validateManual();
-        if(v.ok) setStatus("Dades manuals OK.", true);
-        else setStatus("Introdueix lat/lon vàlids.", false);
-        enableGoIfReady();
+[latEl, lonEl, altEl, rangeEl, dateEl, centerUtcEl].forEach(el => {
+  el.addEventListener("input", () => {
+    if(chosen === "manual"){
+      const v = validateManual();
+      if(v.ok){
+        setStatus("Dades manuals OK.", true);
+        refreshEclipseSummary(v.lat, v.lon, v.alt);
+      } else {
+        setStatus("Introdueix lat/lon vàlids.", false);
+        eclipseCard.style.display = "none";
       }
-    });
+      enableGoIfReady();
+    }
   });
+});
 
   btnGo.addEventListener("click", () => {
     let lat, lon, alt, rangeKm;
