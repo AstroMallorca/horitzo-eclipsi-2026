@@ -150,6 +150,7 @@ const ctx = canvas.getContext("2d");
 const hud = document.getElementById("hud");
 
 let CURRENT_PROFILE = null;
+let CURRENT_PROFILE_DISPLAY = null;
 let BASE_AZ = null;
 let PLOT = null;
 
@@ -219,7 +220,30 @@ function fillGapsLinear(arr, maxGapSamples = 6){
 
   return out;
 }
+function smoothProfileForDisplay(arr, windowSize = 5){
+  const out = arr.slice();
+  const n = arr.length;
+  const half = Math.floor(windowSize / 2);
 
+  for(let i = 0; i < n; i++){
+    if(!Number.isFinite(arr[i])) continue;
+
+    let sum = 0;
+    let count = 0;
+
+    for(let j = i - half; j <= i + half; j++){
+      if(j < 0 || j >= n) continue;
+      if(!Number.isFinite(arr[j])) continue;
+
+      sum += arr[j];
+      count++;
+    }
+
+    if(count > 0) out[i] = sum / count;
+  }
+
+  return out;
+}
 function drawSeaLevel(){
   if(!PLOT) return;
   const y = mapY(0);
@@ -631,7 +655,7 @@ function render(sunPts, sunAtCenter, marks){
 
   drawGrid(W, H);
   drawSeaLevel();
-  drawHorizon(CURRENT_PROFILE);
+  drawHorizon(CURRENT_PROFILE_DISPLAY || CURRENT_PROFILE);
   drawSunPath(sunPts, VIEW.colSunPath);
   drawSunDiscs(marks);
 
@@ -766,25 +790,34 @@ window.addEventListener("resize", () => {
       }
     });
 
-    CURRENT_PROFILE = {
-      az0: result.az0,
-      daz: result.daz,
-      alt: Array.from(result.alt)
-    };
+   CURRENT_PROFILE = {
+  az0: result.az0,
+  daz: result.daz,
+  alt: Array.from(result.alt)
+};
 
-    CURRENT_PROFILE.alt = fillGapsLinear(CURRENT_PROFILE.alt, 6);
+// perfil real: només omplim petits forats
+CURRENT_PROFILE.alt = fillGapsLinear(CURRENT_PROFILE.alt, 6);
 
-    hud.textContent = "Horitzó carregat";
-    render(sunPts, sunAtCenter, marks);
+// perfil només per dibuixar: suavitza la línia visual
+CURRENT_PROFILE_DISPLAY = {
+  az0: CURRENT_PROFILE.az0,
+  daz: CURRENT_PROFILE.daz,
+  alt: smoothProfileForDisplay(CURRENT_PROFILE.alt, 5)
+};
 
-  } catch(e) {
-    console.warn("Error carregant horitzó online", e);
-    CURRENT_PROFILE = null;
-    hud.textContent = `Error horitzó online: ${e.message || e}`;
-    if(window.__SUNPTS__ && window.__SUNCENTER__ && window.__MARKS__){
-      render(window.__SUNPTS__, window.__SUNCENTER__, window.__MARKS__);
-    }
+hud.textContent = "Horitzó carregat";
+render(sunPts, sunAtCenter, marks);
+
+} catch(e) {
+  console.warn("Error carregant horitzó online", e);
+  CURRENT_PROFILE = null;
+  CURRENT_PROFILE_DISPLAY = null;
+  hud.textContent = `Error horitzó online: ${e.message || e}`;
+  if(window.__SUNPTS__ && window.__SUNCENTER__ && window.__MARKS__){
+    render(window.__SUNPTS__, window.__SUNCENTER__, window.__MARKS__);
   }
+}
 })();
 </script>
 
