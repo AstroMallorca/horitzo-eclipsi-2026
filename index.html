@@ -879,8 +879,6 @@ function computeLocalEclipseSummary(lat, lon, alt){
   const simulation = computeSimulationMatches(obs, hMax);
 
   return {
-
-  return {
     kind: classifyLocalEclipse(ecl),
     obscuration: Number.isFinite(ecl.obscuration) ? ecl.obscuration : null,
     magnitude: Number.isFinite(ecl.magnitude) ? ecl.magnitude : null,
