@@ -29,102 +29,374 @@
     tileOptions: { maxTiles: 256 }
   });
 </script>
-  <style>
-    :root{
-      --bg:#000;
-      --card:rgba(255,255,255,.06);
-      --text:#fff;
-      --muted:rgba(255,255,255,.72);
-      --border:rgba(255,255,255,.14);
-      --accent:#ff2aa8;
+ <style>
+  :root{
+    --bg:#050816;
+    --bg-2:#0a1124;
+    --card:rgba(18,25,45,.72);
+    --card-strong:rgba(25,34,58,.88);
+    --text:#f4f7ff;
+    --muted:rgba(222,230,247,.72);
+    --border:rgba(167,188,255,.14);
+    --border-strong:rgba(167,188,255,.22);
+    --accent:#7dd3fc;
+    --accent-2:#a78bfa;
+    --accent-3:#67e8f9;
+    --ok:#86efac;
+    --bad:#fca5a5;
+    --shadow:0 18px 50px rgba(0,0,0,.35);
+    --shadow-soft:0 8px 24px rgba(0,0,0,.24);
+    --radius:18px;
+    --radius-sm:14px;
+  }
+
+  *{box-sizing:border-box;}
+
+  html{
+    color-scheme:dark;
+    -webkit-text-size-adjust:100%;
+  }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    color:var(--text);
+    font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:
+      radial-gradient(circle at top center, rgba(125,211,252,.10), transparent 24%),
+      radial-gradient(circle at 20% 10%, rgba(167,139,250,.10), transparent 20%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+    letter-spacing:.01em;
+  }
+
+  .wrap{
+    max-width:760px;
+    margin:0 auto;
+    padding:26px 16px 40px;
+  }
+
+  .hero{
+    text-align:center;
+    margin-bottom:18px;
+  }
+
+  .eyebrow{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:7px 12px;
+    margin-bottom:12px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    background:rgba(255,255,255,.04);
+    color:var(--muted);
+    font-size:12px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    backdrop-filter:blur(8px);
+  }
+
+  .eyebrow::before{
+    content:"";
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:linear-gradient(180deg,var(--accent),var(--accent-2));
+    box-shadow:0 0 14px rgba(125,211,252,.55);
+  }
+
+  .title{
+    font-size:clamp(28px,4.8vw,40px);
+    line-height:1.05;
+    font-weight:800;
+    letter-spacing:-.03em;
+    margin:0 0 10px;
+    text-wrap:balance;
+  }
+
+  .sub{
+    color:var(--muted);
+    margin:0 auto;
+    line-height:1.5;
+    max-width:60ch;
+    font-size:15.5px;
+  }
+
+  .card{
+    background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02));
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:16px;
+    margin:14px 0;
+    box-shadow:var(--shadow);
+    backdrop-filter:blur(12px);
+  }
+
+  .row{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+
+  .row > button{
+    flex:1 1 150px;
+  }
+
+  button{
+    appearance:none;
+    background:rgba(255,255,255,.035);
+    color:var(--text);
+    border:1px solid var(--border);
+    padding:12px 14px;
+    border-radius:14px;
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+    transition:
+      transform .14s ease,
+      border-color .18s ease,
+      background .18s ease,
+      box-shadow .18s ease;
+    box-shadow:var(--shadow-soft);
+  }
+
+  button:hover{
+    border-color:var(--border-strong);
+    background:rgba(255,255,255,.06);
+  }
+
+  button:active{
+    transform:translateY(1px) scale(.995);
+  }
+
+  button.primary{
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    border-color:transparent;
+    color:#07111f;
+    font-weight:800;
+  }
+
+  button.primary:hover{
+    filter:brightness(1.04);
+  }
+
+  button:disabled{
+    opacity:.5;
+    cursor:not-allowed;
+    transform:none;
+  }
+
+  label{
+    display:block;
+    font-size:12.5px;
+    color:var(--muted);
+    margin:10px 0 6px;
+    font-weight:600;
+    letter-spacing:.02em;
+  }
+
+  input{
+    width:100%;
+    background:rgba(5,8,22,.55);
+    color:var(--text);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:12px 12px;
+    font-size:16px;
+    box-sizing:border-box;
+    outline:none;
+    transition:border-color .18s ease, box-shadow .18s ease, background .18s ease;
+  }
+
+  input:focus{
+    border-color:rgba(125,211,252,.55);
+    box-shadow:0 0 0 3px rgba(125,211,252,.12);
+    background:rgba(8,12,28,.72);
+  }
+
+  .grid2{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+  }
+
+  .hint{
+    color:var(--muted);
+    font-size:13px;
+    line-height:1.45;
+    margin-top:8px;
+  }
+
+  .ok{color:var(--ok);}
+  .bad{color:var(--bad);}
+
+  .sep{
+    height:1px;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,.16), transparent);
+    margin:14px 0;
+  }
+
+  .sectionTitle{
+    font-size:15px;
+    font-weight:700;
+    margin:0 0 10px;
+    color:var(--text);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+
+  .sectionTitle::before{
+    content:"";
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    background:linear-gradient(180deg,var(--accent),var(--accent-2));
+    box-shadow:0 0 14px rgba(125,211,252,.45);
+    flex:0 0 auto;
+  }
+
+  .ctaRow{
+    margin-top:14px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+
+  .modal{
+    position:fixed;
+    inset:0;
+    background:rgba(2,6,18,.74);
+    backdrop-filter:blur(8px);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:14px;
+    z-index:9999;
+  }
+
+  .modal.ocult{display:none;}
+
+  .modalCard{
+    width:min(920px, 96vw);
+    height:min(780px, 92vh);
+    background:linear-gradient(180deg, rgba(11,17,34,.96), rgba(7,12,24,.98));
+    border:1px solid var(--border);
+    border-radius:20px;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    box-shadow:0 25px 70px rgba(0,0,0,.45);
+  }
+
+  .modalTop{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:12px 14px;
+    border-bottom:1px solid rgba(255,255,255,.08);
+    background:rgba(255,255,255,.02);
+  }
+
+  .modalTitle{
+    font-weight:700;
+    letter-spacing:.01em;
+  }
+
+  .modalX{
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:8px 10px;
+    border-radius:12px;
+    cursor:pointer;
+  }
+
+  .mapBox{
+    flex:1;
+    min-height:280px;
+    height:100%;
+  }
+
+  .mapInfo{
+    padding:10px 12px;
+    font-size:14px;
+    color:var(--muted);
+    border-top:1px solid rgba(255,255,255,.08);
+    background:rgba(255,255,255,.02);
+  }
+
+  .modalActions{
+    display:flex;
+    gap:10px;
+    padding:12px;
+    border-top:1px solid rgba(255,255,255,.08);
+    background:rgba(255,255,255,.02);
+  }
+
+  .modalActions > button{
+    flex:1 1 0;
+  }
+
+  #eclipseInfo{
+    font-size:15px;
+    line-height:1.6;
+  }
+
+  #eclipseInfo > div{
+    margin:0 0 7px;
+  }
+
+  @media (max-width:640px){
+    .wrap{
+      padding:20px 12px 28px;
     }
-    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
-    .wrap{max-width:520px;margin:0 auto;padding:18px;}
-    .title{font-size:22px;font-weight:700;margin:10px 0 6px;}
-    .sub{color:var(--muted);margin:0 0 16px;line-height:1.35;}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin:12px 0;}
-    .row{display:flex;gap:10px;flex-wrap:wrap;}
-    button{
-      background:transparent;color:var(--text);
-      border:1px solid var(--border);
-      padding:12px 14px;border-radius:12px;
-      font-size:15px;cursor:pointer;
+
+    .card{
+      padding:14px;
+      border-radius:16px;
     }
-    button.primary{background:var(--accent);border-color:transparent;color:#000;font-weight:700;}
-    button:disabled{opacity:.5;cursor:not-allowed;}
-    label{display:block;font-size:13px;color:var(--muted);margin:10px 0 6px;}
-    input{
+
+    .grid2{
+      grid-template-columns:1fr;
+      gap:10px;
+    }
+
+    .row{
+      flex-direction:column;
+    }
+
+    .row > button{
       width:100%;
-      background:rgba(0,0,0,.25);
-      color:var(--text);
-      border:1px solid var(--border);
-      border-radius:12px;
-      padding:12px 12px;
-      font-size:16px;
-      box-sizing:border-box;
+      flex:none;
     }
-    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-    .hint{color:var(--muted);font-size:13px;line-height:1.35;margin-top:8px;}
-    .ok{color:#7CFFB2}
-    .bad{color:#ff6b6b}
-    .sep{height:1px;background:rgba(255,255,255,.10);margin:12px 0;}
-    .modal{
-  position:fixed; inset:0;
-  background:rgba(0,0,0,.65);
-  display:flex; align-items:center; justify-content:center;
-  padding:14px;
-  z-index:9999;
-}
-.modal.ocult{ display:none; }
 
-.modalCard{
-  width:min(920px, 96vw);
-  height:min(780px, 92vh);
-  background:rgba(0,0,0,.90);
-  border:1px solid var(--border);
-  border-radius:16px;
-  overflow:hidden;
-  display:flex;
-  flex-direction:column;
-}
+    .title{
+      font-size:30px;
+    }
 
-.modalTop{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:10px 12px;
-  border-bottom:1px solid rgba(255,255,255,.10);
-}
-.modalTitle{ font-weight:700; }
-.modalX{
-  background:transparent;
-  border:1px solid var(--border);
-  color:var(--text);
-  padding:8px 10px;
-  border-radius:10px;
-  cursor:pointer;
-}
+    .sub{
+      font-size:14.5px;
+    }
 
-.mapBox{ flex:1; min-height:280px; height:100%; }
-.mapInfo{
-  padding:10px 12px;
-  font-size:14px;
-  color:var(--muted);
-  border-top:1px solid rgba(255,255,255,.10);
-}
-.modalActions{
-  display:flex;
-  gap:10px;
-  padding:12px;
-}
-  </style>
+    .modalCard{
+      width:min(100%, 100vw);
+      height:min(100%, 94vh);
+      border-radius:18px;
+    }
+  }
+</style>
 </head>
 <body>
 <div class="wrap">
-  <div class="title">Horitzó Eclipsi 2026</div>
-  <p class="sub">Comprova si la totalitat serà visible des d’un lloc concret (important quan el Sol és molt baix, ~2°).</p>
-
+  <div class="hero">
+    <div class="eyebrow">AstroMallorca · Eclipsi total 2026</div>
+    <div class="title">Horitzó Eclipsi 2026</div>
+    <p class="sub">Comprova si la totalitat de l’eclipsi solar del 12 d’agost de 2026 serà visible des d’un punt concret de Mallorca, especialment quan el Sol és molt baix sobre l’horitzó.</p>
+  </div>
+  
   <div class="card">
+    <div class="sectionTitle">Selecciona una localització</div>
     <div class="row">
   <button id="btnGPS">📍 Ubicació actual</button>
   <button id="btnManual">✍️ Entrada manual</button>
@@ -171,9 +443,9 @@
       <div class="hint">Pots deixar l’altura buida: si no hi és, posarem 0 m.</div>
     </div>
 
-    <div style="margin-top:12px;">
+       <div class="ctaRow">
       <button class="primary" id="btnGo" disabled>Comprovar visibilitat →</button>
-      <div class="hint">Obrirà la vista d’horitzó amb la graella i el càlcul.</div>
+      <div class="hint">Obrirà la vista de l’horitzó amb el perfil, la trajectòria solar i el càlcul de visibilitat.</div>
     </div>
   </div>
 
@@ -183,9 +455,9 @@
     </div>
   </div>
   <div class="card" id="eclipseCard" style="display:none;">
-  <div class="title" style="font-size:18px; margin:0 0 10px;">Resum de l’eclipsi al punt seleccionat</div>
-  <div id="eclipseInfo" class="hint" style="font-size:15px; line-height:1.5;">—</div>
-</div>
+    <div class="sectionTitle">Resum de l’eclipsi al punt seleccionat</div>
+    <div id="eclipseInfo" class="hint">—</div>
+  </div>
 </div>
 <div id="mapModal" class="modal ocult" aria-hidden="true">
   <div class="modalCard">
