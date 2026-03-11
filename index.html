@@ -75,10 +75,26 @@
     padding:26px 16px 40px;
   }
 
-  .hero{
-    text-align:center;
-    margin-bottom:18px;
-  }
+.hero{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  margin-bottom:18px;
+}
+
+.heroTop{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.heroLogo{
+  width:38px;
+  height:38px;
+  object-fit:contain;
+  filter: drop-shadow(0 0 10px rgba(125,211,252,.45));
+}
 
   .eyebrow{
     display:inline-flex;
@@ -389,9 +405,14 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="hero">
+<div class="hero">
+
+  <div class="heroTop">
+    <img src="assets/icons/icon-512.png" class="heroLogo" alt="Logo Horitzó Eclipsi 2026">
     <div class="eyebrow">AstroMallorca · Eclipsi total 2026</div>
-    <div class="title">Horitzó Eclipsi 2026</div>
+  </div>
+
+  <div class="title">Horitzó Eclipsi 2026</div>
     <p class="sub">Comprova si la totalitat de l’eclipsi solar del 12 d’agost de 2026 serà visible des d’un punt concret de Mallorca, especialment quan el Sol és molt baix sobre l’horitzó.</p>
   </div>
   
