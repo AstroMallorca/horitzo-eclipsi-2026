@@ -362,7 +362,142 @@
   #eclipseInfo > div{
     margin:0 0 7px;
   }
+  .summaryHero{
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0,1fr));
+    gap:10px;
+    margin-bottom:14px;
+  }
 
+  .summaryMetric{
+    background:rgba(255,255,255,.035);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:12px;
+  }
+
+  .summaryMetricLabel{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+
+  .summaryMetricValue{
+    font-size:20px;
+    font-weight:800;
+    line-height:1.1;
+    color:var(--text);
+  }
+
+  .summaryMetricSub{
+    margin-top:4px;
+    font-size:12px;
+    color:var(--muted);
+  }
+
+  .summaryBlock{
+    margin-top:14px;
+    padding-top:12px;
+    border-top:1px solid rgba(255,255,255,.08);
+  }
+
+  .summaryBlock:first-child{
+    margin-top:0;
+    padding-top:0;
+    border-top:0;
+  }
+
+  .summaryBlockTitle{
+    font-size:13px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--accent);
+    margin:0 0 10px;
+  }
+
+  .summaryList{
+    display:grid;
+    gap:7px;
+  }
+
+  .summaryRow{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    padding:8px 0;
+    border-bottom:1px solid rgba(255,255,255,.05);
+  }
+
+  .summaryRow:last-child{
+    border-bottom:0;
+  }
+
+  .summaryRowLabel{
+    color:var(--muted);
+    font-weight:600;
+  }
+
+  .summaryRowValue{
+    text-align:right;
+    color:var(--text);
+  }
+
+  .summaryNote{
+    margin-top:10px;
+    font-size:12.5px;
+    color:var(--muted);
+    line-height:1.45;
+  }
+
+  .summarySimLine{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:8px;
+    padding:8px 0;
+    border-bottom:1px solid rgba(255,255,255,.05);
+  }
+
+  .summarySimLine:last-child{
+    border-bottom:0;
+  }
+
+  .miniBtn{
+    appearance:none;
+    background:rgba(255,255,255,.05);
+    color:var(--text);
+    border:1px solid var(--border);
+    padding:6px 10px;
+    border-radius:10px;
+    font-size:12px;
+    font-weight:700;
+    cursor:pointer;
+  }
+
+  .miniBtn:hover{
+    background:rgba(255,255,255,.08);
+    border-color:var(--border-strong);
+  }
+
+  @media (max-width:640px){
+    .summaryHero{
+      grid-template-columns:1fr;
+    }
+
+    .summaryRow{
+      flex-direction:column;
+      align-items:flex-start;
+      gap:4px;
+    }
+
+    .summaryRowValue{
+      text-align:left;
+    }
+  }
   @media (max-width:640px){
     .wrap{
       padding:20px 12px 28px;
@@ -622,6 +757,10 @@ function fmtMallorcaHmsFromDate(d){
     second: "2-digit",
     hour12: false
   }).format(d);
+}
+  function fmtLocalTimeAstroSec(x){
+  const d = astroToDate(x);
+  return d ? fmtMallorcaHmsFromDate(d) : "—";
 }
 
 function angleDiffDeg(a, b){
@@ -949,46 +1088,100 @@ function renderLocalEclipseSummary(lat, lon, alt, info, obstacleSet){
 if (obstacleSet === null) {
   obstacleTxt = "No disponible";
 } else if (obstacleSet) {
-  obstacleTxt = `${fmtTimeAstroSec(obstacleSet.time)} · alt ${obstacleSet.alt.toFixed(1)}° · az ${obstacleSet.az.toFixed(1)}° · horitzó ${obstacleSet.hHor.toFixed(1)}°`;
+  obstacleTxt = `${fmtLocalTimeAstroSec(obstacleSet.time)} · alt ${obstacleSet.alt.toFixed(1)}° · az ${obstacleSet.az.toFixed(1)}° · horitzó ${obstacleSet.hHor.toFixed(1)}°`;
 }
 
   eclipseInfo.innerHTML = `
-    <div><b>📍 Coordenades:</b> ${lat.toFixed(5)}, ${lon.toFixed(5)} · <b>Altitud:</b> ${Math.round(alt)} m</div>
-    <div><b>🌘 Tipus:</b> ${info.kind}</div>
-    <div><b>🔭 Magnitud:</b> ${mag}</div>
-    <div><b>🌑 Obscuració:</b> ${obsc}</div>
-    <div><b>⏱ Durada de totalitat/anularitat:</b> ${fmtDurSeconds(info.durationSec)}</div>
+    <div class="summaryHero">
+      <div class="summaryMetric">
+        <div class="summaryMetricLabel">Obscuració</div>
+        <div class="summaryMetricValue">${obsc}</div>
+        <div class="summaryMetricSub">Cobertura màxima del disc solar</div>
+      </div>
 
-    <div style="margin-top:8px;"><b>Fases (UTC):</b></div>
-    <div>C1: ${fmtTimeAstroSec(info.c1)}${info.hC1 ? ` · alt ${info.hC1.alt.toFixed(1)}° · az ${info.hC1.az.toFixed(1)}°` : ""}</div>
-    <div>C2: ${fmtTimeAstroSec(info.c2)}${info.hC2 ? ` · alt ${info.hC2.alt.toFixed(1)}° · az ${info.hC2.az.toFixed(1)}°` : ""}</div>
-    <div>Màxim: ${fmtTimeAstroSec(info.max)}${info.hMax ? ` · alt ${info.hMax.alt.toFixed(1)}° · az ${info.hMax.az.toFixed(1)}°` : ""}</div>
-    <div>C3: ${fmtTimeAstroSec(info.c3)}${info.hC3 ? ` · alt ${info.hC3.alt.toFixed(1)}° · az ${info.hC3.az.toFixed(1)}°` : ""}</div>
-    <div>C4: ${fmtTimeAstroSec(info.c4)}${info.hC4 ? ` · alt ${info.hC4.alt.toFixed(1)}° · az ${info.hC4.az.toFixed(1)}°` : ""}</div>
+      <div class="summaryMetric">
+        <div class="summaryMetricLabel">Durada totalitat</div>
+        <div class="summaryMetricValue">${fmtDurSeconds(info.durationSec)}</div>
+        <div class="summaryMetricSub">Si el punt entra dins la banda total</div>
+      </div>
 
-    <div style="margin-top:8px;"><b>🌅 Posta astronòmica (horitzó marí):</b>
-      ${fmtTimeAstroSec(info.sunset)}${info.hSet ? ` · alt ${info.hSet.alt.toFixed(1)}° · az ${info.hSet.az.toFixed(1)}°` : ""}
+      <div class="summaryMetric">
+        <div class="summaryMetricLabel">Sol al màxim</div>
+        <div class="summaryMetricValue">${altMax}</div>
+        <div class="summaryMetricSub">Azimut ${azMax}</div>
+      </div>
     </div>
 
-    <div><b>⛰️ Posta local (relleu/obstacles):</b> ${obstacleTxt}</div>
+    <div class="summaryBlock">
+      <div class="summaryBlockTitle">Fases de l’eclipsi · hora local</div>
+      <div class="summaryList">
+        <div class="summaryRow">
+          <div class="summaryRowLabel">C1</div>
+          <div class="summaryRowValue">${fmtLocalTimeAstroSec(info.c1)}${info.hC1 ? ` · alt ${info.hC1.alt.toFixed(1)}° · az ${info.hC1.az.toFixed(1)}°` : ""}</div>
+        </div>
 
-       <div style="margin-top:8px;"><b>☀️ Sol al màxim:</b> altura ${altMax} · azimut ${azMax}</div>
+        <div class="summaryRow">
+          <div class="summaryRowLabel">C2</div>
+          <div class="summaryRowValue">${fmtLocalTimeAstroSec(info.c2)}${info.hC2 ? ` · alt ${info.hC2.alt.toFixed(1)}° · az ${info.hC2.az.toFixed(1)}°` : ""}</div>
+        </div>
 
-    <div style="margin-top:10px;"><b>🧪 Simulació solar (referència: màxim de l’eclipsi):</b></div>
-    <div><b>Millor coincidència:</b> ${simBestTxt} <span style="opacity:.75;">(${simBestLabel})</span></div>
+        <div class="summaryRow">
+          <div class="summaryRowLabel">Màxim</div>
+          <div class="summaryRowValue">${fmtLocalTimeAstroSec(info.max)}${info.hMax ? ` · alt ${info.hMax.alt.toFixed(1)}° · az ${info.hMax.az.toFixed(1)}°` : ""}</div>
+        </div>
 
-    <div style="margin-top:6px;">
-      <b>29/04/2026:</b> ${sim29Txt}
-      ${sim29?.date ? `<button type="button" onclick="applySimulationDate('${sim29Date}','${sim29Hm}')" style="margin-left:8px;padding:6px 10px;font-size:12px;border-radius:10px;">Usar</button>` : ``}
+        <div class="summaryRow">
+          <div class="summaryRowLabel">C3</div>
+          <div class="summaryRowValue">${fmtLocalTimeAstroSec(info.c3)}${info.hC3 ? ` · alt ${info.hC3.alt.toFixed(1)}° · az ${info.hC3.az.toFixed(1)}°` : ""}</div>
+        </div>
+
+        <div class="summaryRow">
+          <div class="summaryRowLabel">C4</div>
+          <div class="summaryRowValue">${fmtLocalTimeAstroSec(info.c4)}${info.hC4 ? ` · alt ${info.hC4.alt.toFixed(1)}° · az ${info.hC4.az.toFixed(1)}°` : ""}</div>
+        </div>
+      </div>
     </div>
 
-    <div style="margin-top:6px;">
-      <b>30/04/2026:</b> ${sim30Txt}
-      ${sim30?.date ? `<button type="button" onclick="applySimulationDate('${sim30Date}','${sim30Hm}')" style="margin-left:8px;padding:6px 10px;font-size:12px;border-radius:10px;">Usar</button>` : ``}
+    <div class="summaryBlock">
+      <div class="summaryBlockTitle">Posta de sol</div>
+      <div class="summaryList">
+        <div class="summaryRow">
+          <div class="summaryRowLabel">Posta astronòmica</div>
+          <div class="summaryRowValue">
+            ${fmtLocalTimeAstroSec(info.sunset)}${info.hSet ? ` · alt ${info.hSet.alt.toFixed(1)}° · az ${info.hSet.az.toFixed(1)}°` : ""}
+          </div>
+        </div>
+
+        <div class="summaryRow">
+          <div class="summaryRowLabel">Posta local</div>
+          <div class="summaryRowValue">${obstacleTxt === "Calculant…" ? "Calculant…" : obstacleTxt === "No disponible" ? "No disponible" : obstacleTxt.replace(/^(\d{2}:\d{2}:\d{2})/, '$1')}</div>
+        </div>
+      </div>
     </div>
 
-    <div style="margin-top:8px; opacity:.85;">
-      <i>Nota:</i> la simulació cerca, per al 29 i 30 d’abril, l’instant en què el Sol s’assembla més a la seva posició al màxim de l’eclipsi. La posta local continua tenint en compte el relleu/obstacles al sector de posta.
+    <div class="summaryBlock">
+      <div class="summaryBlockTitle">Simulació solar · hora local</div>
+
+      <div class="summarySimLine">
+        <b>Millor coincidència:</b>
+        <span>${simBest?.date ? `${fmtMallorcaHmsFromDate(simBest.date)} · ${simBest.date.toISOString().slice(0,10)}` : "No disponible"}</span>
+      </div>
+
+      <div class="summarySimLine">
+        <b>29/04/2026:</b>
+        <span>${sim29?.date ? `${fmtMallorcaHmsFromDate(sim29.date)} · Δalt ${sim29.dAlt >= 0 ? "+" : ""}${sim29.dAlt.toFixed(2)}° · Δaz ${sim29.dAz.toFixed(2)}°` : "No disponible"}</span>
+        ${sim29?.date ? `<button type="button" onclick="applySimulationDate('${sim29Date}','${sim29Hm}')" class="miniBtn">Usar</button>` : ``}
+      </div>
+
+      <div class="summarySimLine">
+        <b>30/04/2026:</b>
+        <span>${sim30?.date ? `${fmtMallorcaHmsFromDate(sim30.date)} · Δalt ${sim30.dAlt >= 0 ? "+" : ""}${sim30.dAlt.toFixed(2)}° · Δaz ${sim30.dAz.toFixed(2)}°` : "No disponible"}</span>
+        ${sim30?.date ? `<button type="button" onclick="applySimulationDate('${sim30Date}','${sim30Hm}')" class="miniBtn">Usar</button>` : ``}
+      </div>
+
+      <div class="summaryNote">
+        La simulació cerca, per al 29 i 30 d’abril, l’instant en què el Sol s’assembla més a la posició que tindrà al màxim de l’eclipsi.
+      </div>
     </div>
   `;
 }
