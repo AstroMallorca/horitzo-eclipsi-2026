@@ -577,9 +577,125 @@ function fmtTimeAstroSec(x){
   return "—";
 }
 
-function fmtDurSeconds(sec){
-  if(!Number.isFinite(sec) || sec <= 0) return "—";
-  return `${sec.toFixed(1)} s`;
+function astroToDate(x){
+  if(!x) return null;
+
+  let t = x;
+  if (x.time) t = x.time;
+
+  if (t instanceof Date) return t;
+  if (t.date instanceof Date) return t.date;
+
+  if (typeof t.toDate === "function"){
+    const d = t.toDate();
+    return d instanceof Date ? d : null;
+  }
+
+  return null;
+}
+
+function fmtUtcDate(x){
+  const d = astroToDate(x);
+  return d ? d.toISOString().slice(0,10) : "—";
+}
+
+function fmtUtcHm(x){
+  const d = astroToDate(x);
+  return d ? d.toISOString().slice(11,16) : "—";
+}
+
+function fmtUtcHmsFromDate(d){
+  return d instanceof Date ? d.toISOString().slice(11,19) : "—";
+}
+
+function fmtMallorcaHmsFromDate(d){
+  if(!(d instanceof Date)) return "—";
+  return new Intl.DateTimeFormat("ca-ES", {
+    timeZone: "Europe/Madrid",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  }).format(d);
+}
+
+function angleDiffDeg(a, b){
+  let d = Math.abs(a - b) % 360;
+  if (d > 180) d = 360 - d;
+  return d;
+}
+
+function sunHorAtDateForIndex(dateObj, obs){
+  if(!(dateObj instanceof Date)) return null;
+
+  const t = Astronomy.MakeTime(dateObj);
+  const eq = Astronomy.Equator("Sun", t, obs, true, true);
+  const hor = Astronomy.Horizon(t, obs, eq.ra, eq.dec, "normal");
+
+  let az = hor.azimuth;
+  if (az < 0) az += 360;
+  if (az >= 360) az -= 360;
+
+  return {
+    alt: hor.altitude,
+    az
+  };
+}
+
+function findBestSimulationForDate(obs, targetHor, year, monthIndex, day){
+  if(!targetHor || !Number.isFinite(targetHor.alt) || !Number.isFinite(targetHor.az)) return null;
+
+  // Cercam només al tram de capvespre, que és on ens interessa
+  const startMs = Date.UTC(year, monthIndex, day, 16, 0, 0);
+  const endMs   = Date.UTC(year, monthIndex, day, 21, 0, 0);
+
+  let best = null;
+
+  for(let ms = startMs; ms <= endMs; ms += 5000){
+    const d = new Date(ms);
+    const s = sunHorAtDateForIndex(d, obs);
+    if(!s) continue;
+
+    const dAlt = s.alt - targetHor.alt;
+    const dAz = angleDiffDeg(s.az, targetHor.az);
+
+    // Donam una mica més de pes a l’altura; l’azimut també compta
+    const score = Math.hypot(dAlt, dAz * Math.cos(targetHor.alt * Math.PI / 180));
+
+    if(!best || score < best.score){
+      best = {
+        date: d,
+        alt: s.alt,
+        az: s.az,
+        dAlt,
+        dAz,
+        score
+      };
+    }
+  }
+
+  return best;
+}
+
+function computeSimulationMatches(obs, targetHor){
+  if(!obs || !targetHor) return null;
+
+  const apr29 = findBestSimulationForDate(obs, targetHor, 2026, 3, 29);
+  const apr30 = findBestSimulationForDate(obs, targetHor, 2026, 3, 30);
+
+  let best = null;
+  if (apr29 && apr30) best = (apr29.score <= apr30.score) ? apr29 : apr30;
+  else best = apr29 || apr30 || null;
+
+  return { apr29, apr30, best };
+}
+
+function applySimulationDate(dateStr, hhmm){
+  dateEl.value = dateStr;
+  centerUtcEl.value = hhmm;
+
+  setStatus(`Simulació aplicada: ${dateStr} ${hhmm} UTC`, true);
+  enableGoIfReady();
 }
 
 function sunHorAtTimeForIndex(x, obs){
@@ -760,6 +876,10 @@ function computeLocalEclipseSummary(lat, lon, alt){
     if (d2 && d3) durationSec = (d3.getTime() - d2.getTime()) / 1000;
   }
 
+  const simulation = computeSimulationMatches(obs, hMax);
+
+  return {
+
   return {
     kind: classifyLocalEclipse(ecl),
     obscuration: Number.isFinite(ecl.obscuration) ? ecl.obscuration : null,
@@ -767,7 +887,8 @@ function computeLocalEclipseSummary(lat, lon, alt){
     c1, c2, max, c3, c4,
     sunset: sunset || null,
     hC1, hC2, hMax, hC3, hC4, hSet,
-    durationSec
+    durationSec,
+    simulation
   };
 }
 
@@ -790,6 +911,29 @@ function renderLocalEclipseSummary(lat, lon, alt, info, obstacleSet){
 
   const altMax = info.hMax && Number.isFinite(info.hMax.alt) ? `${info.hMax.alt.toFixed(1)}°` : "—";
   const azMax  = info.hMax && Number.isFinite(info.hMax.az)  ? `${info.hMax.az.toFixed(1)}°`  : "—";
+    const sim29 = info.simulation?.apr29 || null;
+  const sim30 = info.simulation?.apr30 || null;
+  const simBest = info.simulation?.best || null;
+
+  const sim29Date = sim29?.date ? sim29.date.toISOString().slice(0,10) : "2026-04-29";
+  const sim30Date = sim30?.date ? sim30.date.toISOString().slice(0,10) : "2026-04-30";
+
+  const sim29Hm = sim29?.date ? sim29.date.toISOString().slice(11,16) : "";
+  const sim30Hm = sim30?.date ? sim30.date.toISOString().slice(11,16) : "";
+
+  const simBestTxt = simBest?.date
+    ? `${fmtUtcDate(simBest.date)} · ${fmtUtcHmsFromDate(simBest.date)} UTC · ${fmtMallorcaHmsFromDate(simBest.date)} hora Mallorca`
+    : "No disponible";
+
+  const sim29Txt = sim29?.date
+    ? `${fmtUtcHmsFromDate(sim29.date)} UTC · ${fmtMallorcaHmsFromDate(sim29.date)} hora Mallorca · Δalt ${sim29.dAlt >= 0 ? "+" : ""}${sim29.dAlt.toFixed(2)}° · Δaz ${sim29.dAz.toFixed(2)}°`
+    : "No disponible";
+
+  const sim30Txt = sim30?.date
+    ? `${fmtUtcHmsFromDate(sim30.date)} UTC · ${fmtMallorcaHmsFromDate(sim30.date)} hora Mallorca · Δalt ${sim30.dAlt >= 0 ? "+" : ""}${sim30.dAlt.toFixed(2)}° · Δaz ${sim30.dAz.toFixed(2)}°`
+    : "No disponible";
+
+  const simBestLabel = simBest?.date ? simBest.date.toISOString().slice(0,10) : "—";
 
  let obstacleTxt = "Calculant…";
 
@@ -819,10 +963,23 @@ if (obstacleSet === null) {
 
     <div><b>⛰️ Posta local (relleu/obstacles):</b> ${obstacleTxt}</div>
 
-    <div style="margin-top:8px;"><b>☀️ Sol al màxim:</b> altura ${altMax} · azimut ${azMax}</div>
+       <div style="margin-top:8px;"><b>☀️ Sol al màxim:</b> altura ${altMax} · azimut ${azMax}</div>
+
+    <div style="margin-top:10px;"><b>🧪 Simulació solar (referència: màxim de l’eclipsi):</b></div>
+    <div><b>Millor coincidència:</b> ${simBestTxt} <span style="opacity:.75;">(${simBestLabel})</span></div>
+
+    <div style="margin-top:6px;">
+      <b>29/04/2026:</b> ${sim29Txt}
+      ${sim29?.date ? `<button type="button" onclick="applySimulationDate('${sim29Date}','${sim29Hm}')" style="margin-left:8px;padding:6px 10px;font-size:12px;border-radius:10px;">Usar</button>` : ``}
+    </div>
+
+    <div style="margin-top:6px;">
+      <b>30/04/2026:</b> ${sim30Txt}
+      ${sim30?.date ? `<button type="button" onclick="applySimulationDate('${sim30Date}','${sim30Hm}')" style="margin-left:8px;padding:6px 10px;font-size:12px;border-radius:10px;">Usar</button>` : ``}
+    </div>
 
     <div style="margin-top:8px; opacity:.85;">
-      <i>Nota:</i> la posta local té en compte el relleu/obstacles al sector de posta.
+      <i>Nota:</i> la simulació cerca, per al 29 i 30 d’abril, l’instant en què el Sol s’assembla més a la seva posició al màxim de l’eclipsi. La posta local continua tenint en compte el relleu/obstacles al sector de posta.
     </div>
   `;
 }
