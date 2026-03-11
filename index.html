@@ -562,6 +562,11 @@ const eclipseInfo = document.getElementById("eclipseInfo");
 
 let __summaryReqId = 0;
 
+function fmtDurSeconds(sec){
+  if(!Number.isFinite(sec) || sec <= 0) return "—";
+  return `${sec.toFixed(1)} s`;
+}
+
 function fmtTimeAstroSec(x){
   if(!x) return "—";
   let t = x;
@@ -876,7 +881,13 @@ function computeLocalEclipseSummary(lat, lon, alt){
     if (d2 && d3) durationSec = (d3.getTime() - d2.getTime()) / 1000;
   }
 
-  const simulation = computeSimulationMatches(obs, hMax);
+  let simulation = null;
+  try{
+    simulation = computeSimulationMatches(obs, hMax);
+  }catch(err){
+    console.warn("No s'ha pogut calcular la simulació solar", err);
+    simulation = null;
+  }
 
   return {
     kind: classifyLocalEclipse(ecl),
