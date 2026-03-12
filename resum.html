@@ -19,12 +19,12 @@
   <script type="module">
     import { HorizonEngine } from "./data/horizon_engine.js";
 
-    window.__INDEX_HORIZON_ENGINE__ = new HorizonEngine({
-      tileZoom: 12,
-      observerHeightM: 1.7,
-      refractionK: 0.13,
-      tileOptions: { maxTiles: 256 }
-    });
+window.__INDEX_HORIZON_ENGINE__ = new HorizonEngine({
+  tileZoom: 12,
+  observerHeightM: 1.7,
+  refractionK: 0.13,
+  tileOptions: { maxTiles: 640 }
+});
   </script>
 
   <style>
@@ -1197,9 +1197,9 @@ async function precomputeVisorProfile(lat, lon, alt, rangeKm, dateStr, centerUtc
     const azMin = dynMin - margin;
     const azMax = dynMax + margin;
 
-    const centerAzDeg = (azMin + azMax) / 2;
-    const fovDeg = Math.max(4, azMax - azMin);
-    const samples = Math.max(220, Math.ceil(fovDeg * 10));
+const centerAzDeg = (azMin + azMax) / 2;
+const fovDeg = Math.max(4, azMax - azMin);
+const samples = Math.max(420, Math.ceil(fovDeg * 18));
 
     const result = await engine.computeProfile({
       lat,
@@ -1240,7 +1240,7 @@ async function precomputeVisorProfile(lat, lon, alt, rangeKm, dateStr, centerUtc
       const centerAzDeg = seaHor.az;
       const fovDeg = 10;
       const samples = 80;
-      const maxDistM = 50000;
+      const maxDistM = 70000;
 
       const result = await engine.computeProfile({
         lat,
