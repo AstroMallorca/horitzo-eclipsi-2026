@@ -242,7 +242,14 @@
     line-height:1.45;
     margin-top:8px;
   }
+  #selectedLocationInfo{
+    font-size:15px;
+    line-height:1.55;
+  }
 
+  #selectedLocationInfo b{
+    color:var(--text);
+  }
   .ok{color:var(--ok);}
   .bad{color:var(--bad);}
 
@@ -845,7 +852,12 @@
   <button id="btnManual">✍️ Entrada manual</button>
   <button id="btnMap">🗺️ Tria al mapa</button>
 </div>
-    <div class="hint" id="status">Tria un mode.</div>
+       <div class="hint" id="status">Tria un mode.</div>
+
+    <div id="selectedLocationCard" class="card" style="display:none; margin-top:12px;">
+      <div class="sectionTitle">Localització seleccionada</div>
+      <div id="selectedLocationInfo" class="hint">—</div>
+    </div>
 
     <div class="sep"></div>
 
@@ -933,6 +945,8 @@ const centerUtcEl = document.getElementById("centerUtc");
   const lonEl = document.getElementById("lon");
   const altEl = document.getElementById("alt");
   const rangeEl = document.getElementById("rangeKm");
+  const selectedLocationCard = document.getElementById("selectedLocationCard");
+  const selectedLocationInfo = document.getElementById("selectedLocationInfo");
 if (!btnMap || !mapModal || !mapOk || !mapCancel || !mapClose || !mapInfo) {
   console.warn("Mapa no inicialitzat: falta HTML del modal o el botó btnMap.");
 } else {
@@ -954,18 +968,20 @@ if (!btnMap || !mapModal || !mapOk || !mapCancel || !mapClose || !mapInfo) {
     lonEl.value = picked.lon.toFixed(6);
     altEl.value = String(Math.round(picked.alt ?? 0));
 chosen = "manual";
-manualBox.style.display = "block";
+manualBox.style.display = "none";
 
 saveLastLocation({
-  lat: picked.lat,
-  lon: picked.lon,
-  alt: picked.alt ?? 0,
+  lat: current.lat,
+  lon: current.lon,
+  alt: current.alt ?? 0,
   rangeKm: parseNum(rangeEl.value) ?? 200,
   date: (dateEl.value || "2026-08-12").trim(),
   centerUtc: (centerUtcEl.value || "18:30").trim()
 });
 
-setStatus("Localització del mapa aplicada. Dades manuals OK.", true);
+showSelectedLocation(current.lat, current.lon, current.alt ?? 0);
+
+setStatus(`Ubicació OK: ${current.lat.toFixed(5)}, ${current.lon.toFixed(5)} (alt ${Math.round(current.alt)} m)`, true);
 enableGoIfReady();
 closeMapModal();
   });
@@ -982,6 +998,25 @@ closeMapModal();
     if(v==null) return null;
     const x = parseFloat(String(v).replace(",", "."));
     return Number.isFinite(x) ? x : null;
+  }
+    function showSelectedLocation(lat, lon, alt){
+    if(!Number.isFinite(lat) || !Number.isFinite(lon)){
+      selectedLocationCard.style.display = "none";
+      selectedLocationInfo.innerHTML = "—";
+      return;
+    }
+
+    selectedLocationInfo.innerHTML = `
+      <div><b>Coordenades:</b> ${lat.toFixed(6)}, ${lon.toFixed(6)}</div>
+      <div><b>Altitud:</b> ${Math.round(Number.isFinite(alt) ? alt : 0)} m</div>
+    `;
+
+    selectedLocationCard.style.display = "block";
+  }
+
+  function hideSelectedLocation(){
+    selectedLocationCard.style.display = "none";
+    selectedLocationInfo.innerHTML = "—";
   }
   const LAST_LOCATION_KEY = "horitzo2026:lastLocation";
 
@@ -1015,7 +1050,13 @@ closeMapModal();
     if(typeof data.centerUtc === "string" && data.centerUtc) centerUtcEl.value = data.centerUtc;
 
     chosen = "manual";
-    manualBox.style.display = "block";
+    manualBox.style.display = "none";
+
+    showSelectedLocation(
+      Number.isFinite(data.lat) ? data.lat : null,
+      Number.isFinite(data.lon) ? data.lon : null,
+      Number.isFinite(data.alt) ? data.alt : 0
+    );
 
     const v = validateManual();
     if(v.ok){
@@ -1186,6 +1227,7 @@ function initMapIfNeeded(){
   btnManual.addEventListener("click", () => {
     chosen = "manual";
     manualBox.style.display = "block";
+    hideSelectedLocation();
     setStatus("Mode manual: introdueix coordenades.", true);
     enableGoIfReady();
   });
@@ -1226,9 +1268,12 @@ enableGoIfReady();
 [latEl, lonEl, altEl, rangeEl, dateEl, centerUtcEl].forEach(el => {
   el.addEventListener("input", () => {
     if(chosen === "manual"){
+      hideSelectedLocation();
+
       const v = validateManual();
       if(v.ok){
         setStatus("Dades manuals OK.", true);
+
         saveLastLocation({
           lat: v.lat,
           lon: v.lon,
