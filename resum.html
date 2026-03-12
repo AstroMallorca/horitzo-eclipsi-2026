@@ -722,6 +722,26 @@
     const dateStr = (params.get("date") || "2026-08-12").trim();
     const centerUtc = (params.get("centerUtc") || "18:30").trim();
 
+    const VISOR_PROFILE_CACHE_PREFIX = "horitzo2026:visorProfile:";
+
+function makeVisorProfileCacheKey(lat, lon, alt, rangeKm, dateStr, centerUtc){
+  return VISOR_PROFILE_CACHE_PREFIX + [
+    lat.toFixed(6),
+    lon.toFixed(6),
+    Math.round(alt),
+    Math.round(rangeKm),
+    dateStr,
+    centerUtc
+  ].join("|");
+}
+
+function saveVisorProfileToCache(key, data){
+  try{
+    sessionStorage.setItem(key, JSON.stringify(data));
+  }catch(err){
+    console.warn("No s'ha pogut guardar la precàrrega del visor", err);
+  }
+}
     function fmtDurSeconds(sec){
       if(!Number.isFinite(sec) || sec <= 0) return "—";
       return `${sec.toFixed(1)} s`;
@@ -1020,6 +1040,77 @@ async function waitForHorizonEngine(maxWaitMs = 4000){
 
   return null;
 }
+    function fillGapsLinear(arr, maxGapSamples = 6){
+  const out = arr.slice();
+  const n = out.length;
+  let i = 0;
+
+  while(i < n){
+    if(Number.isFinite(out[i])) { i++; continue; }
+
+    const gapStart = i;
+    while(i < n && !Number.isFinite(out[i])) i++;
+    const gapEnd = i - 1;
+
+    const left = gapStart - 1;
+    const right = i;
+    const gapLen = right - left - 1;
+
+    if(
+      gapLen > 0 &&
+      gapLen <= maxGapSamples &&
+      left >= 0 &&
+      right < n &&
+      Number.isFinite(out[left]) &&
+      Number.isFinite(out[right])
+    ){
+      const v0 = out[left];
+      const v1 = out[right];
+      const span = right - left;
+
+      for(let k = gapStart; k <= gapEnd; k++){
+        const t = (k - left) / span;
+        out[k] = v0 + (v1 - v0) * t;
+      }
+    }
+  }
+
+  return out;
+}
+
+function smoothProfileForDisplay(arr, windowSize = 5){
+  const out = arr.slice();
+  const n = arr.length;
+  const half = Math.floor(windowSize / 2);
+
+  for(let i = 0; i < n; i++){
+    if(!Number.isFinite(arr[i])) continue;
+
+    let sum = 0;
+    let count = 0;
+
+    for(let j = i - half; j <= i + half; j++){
+      if(j < 0 || j >= n) continue;
+      if(!Number.isFinite(arr[j])) continue;
+      sum += arr[j];
+      count++;
+    }
+
+    if(count > 0) out[i] = sum / count;
+  }
+
+  return out;
+}
+    async function waitForHorizonEngine(maxWaitMs = 4000){
+  const t0 = performance.now();
+
+  while(performance.now() - t0 < maxWaitMs){
+    if(window.__INDEX_HORIZON_ENGINE__) return window.__INDEX_HORIZON_ENGINE__;
+    await new Promise(r => setTimeout(r, 40));
+  }
+
+  return null;
+}
     function profileAltAtAz(profile, azDeg){
       if(!profile || !profile.alt || !Number.isFinite(profile.az0) || !Number.isFinite(profile.daz)) return NaN;
 
@@ -1041,7 +1132,103 @@ async function waitForHorizonEngine(maxWaitMs = 4000){
       const t = f - i0;
       return v0 + (v1 - v0) * t;
     }
+async function precomputeVisorProfile(lat, lon, alt, rangeKm, dateStr, centerUtc){
+  try{
+    const engine = await waitForHorizonEngine();
+    if(!engine) return;
 
+    const obs = new Astronomy.Observer(lat, lon, alt);
+
+    const ymd = (() => {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr || ""));
+      if(!m) return { y:2026, mo:8, d:12 };
+      return { y:+m[1], mo:+m[2], d:+m[3] };
+    })();
+
+    const hhmm = (() => {
+      const m = /^(\d{1,2}):(\d{2})$/.exec(String(centerUtc || ""));
+      if(!m) return { hh:18, mm:30 };
+      return { hh:+m[1], mm:+m[2] };
+    })();
+
+    const dayStartUTC = new Date(Date.UTC(ymd.y, ymd.mo - 1, ymd.d, 0, 0, 0));
+    const ecl = Astronomy.SearchLocalSolarEclipse(dayStartUTC, obs);
+
+    const dayMidUTC = new Date(Date.UTC(ymd.y, ymd.mo - 1, ymd.d, 12, 0, 0));
+    const sunSetTime = Astronomy.SearchAltitude("Sun", obs, -1, dayMidUTC, 1, -0.833);
+
+    const c1Pt = (ecl && ecl.partial_begin && ecl.partial_begin.time)
+      ? sunHorAtTimeForIndex(ecl.partial_begin.time, obs)
+      : null;
+
+    const peakPt = (ecl && ecl.peak && ecl.peak.time)
+      ? sunHorAtTimeForIndex(ecl.peak.time, obs)
+      : null;
+
+    const sunSetPt = (sunSetTime && sunSetTime.time)
+      ? sunHorAtTimeForIndex(sunSetTime.time, obs)
+      : null;
+
+    let c1Az = (c1Pt && Number.isFinite(c1Pt.az)) ? c1Pt.az : null;
+    let setAz = (sunSetPt && Number.isFinite(sunSetPt.az)) ? sunSetPt.az : null;
+
+    const marginLayoutAz = 1.0;
+    let azMinBase = (c1Az != null) ? (c1Az - marginLayoutAz) : 220;
+    let azMaxBase = (setAz != null) ? (setAz + marginLayoutAz) : 300;
+
+    if (!Number.isFinite(azMinBase) || !Number.isFinite(azMaxBase) || (azMaxBase - azMinBase) < 5) {
+      azMinBase = 220;
+      azMaxBase = 300;
+    }
+
+    if ((azMaxBase - azMinBase) < 10) {
+      const mid = (azMinBase + azMaxBase) / 2;
+      azMinBase = mid - 5;
+      azMaxBase = mid + 5;
+    }
+
+    const fallbackMin = 260.0;
+    const fallbackMax = 300.0;
+    const margin = 1.0;
+
+    const dynMin = Number.isFinite(azMinBase) ? azMinBase : fallbackMin;
+    const dynMax = Number.isFinite(azMaxBase) ? azMaxBase : fallbackMax;
+
+    const azMin = dynMin - margin;
+    const azMax = dynMax + margin;
+
+    const centerAzDeg = (azMin + azMax) / 2;
+    const fovDeg = Math.max(4, azMax - azMin);
+    const samples = Math.max(220, Math.ceil(fovDeg * 10));
+
+    const result = await engine.computeProfile({
+      lat,
+      lon,
+      observerAltM: Number.isFinite(alt) ? alt : null,
+      centerAzDeg,
+      fovDeg,
+      samples,
+      maxDistM: Math.max(20000, Math.min(200000, (rangeKm || 100) * 1000))
+    });
+
+    const rawAlt = Array.from(result.alt);
+    const filledAlt = fillGapsLinear(rawAlt, 6);
+    const displayAlt = smoothProfileForDisplay(filledAlt, 5);
+
+    const key = makeVisorProfileCacheKey(lat, lon, alt, rangeKm, dateStr, centerUtc);
+
+    saveVisorProfileToCache(key, {
+      az0: result.az0,
+      daz: result.daz,
+      alt: filledAlt,
+      altDisplay: displayAlt,
+      cachedAt: Date.now()
+    });
+
+  }catch(err){
+    console.warn("No s'ha pogut precalcular el perfil del visor", err);
+  }
+}
  async function computeObstacleSunset(lat, lon, alt, seaSetTime){
   const engine = await waitForHorizonEngine();
   if (!engine || !seaSetTime) return null;
@@ -1429,11 +1616,15 @@ function updateLocationCard(){
 
     updateLocationCard();
 
-    if(Number.isFinite(lat) && Number.isFinite(lon)){
-      refreshEclipseSummary(lat, lon, Number.isFinite(alt) ? alt : 0);
-    } else {
-      eclipseCard.style.display = "none";
-    }
+if(Number.isFinite(lat) && Number.isFinite(lon)){
+  const safeAlt = Number.isFinite(alt) ? alt : 0;
+  const safeRangeKm = Number.isFinite(rangeKm) ? rangeKm : 200;
+
+  refreshEclipseSummary(lat, lon, safeAlt);
+  precomputeVisorProfile(lat, lon, safeAlt, safeRangeKm, dateStr, centerUtc);
+} else {
+  eclipseCard.style.display = "none";
+}
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
