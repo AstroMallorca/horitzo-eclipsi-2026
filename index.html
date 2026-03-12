@@ -584,9 +584,91 @@
     max-width:34ch;
     text-wrap:balance;
   }
+     .partialOnlyCard{
+    position:relative;
+    min-height:148px;
+    border-radius:18px;
+    overflow:hidden;
+    border:1px solid rgba(255,255,255,.10);
+    background:#10182d;
+    box-shadow:0 12px 28px rgba(0,0,0,.28);
+    isolation:isolate;
+  }
+
+  .partialOnlyCard::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:
+      radial-gradient(circle at 38% 42%, #fbbc04 0 17%, transparent 17.3%),
+      radial-gradient(circle at 57% 49%, #2e2e2e 0 17.5%, transparent 17.8%),
+      #2fb2dc;
+    z-index:0;
+  }
+
+  .partialOnlyCard::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:
+      linear-gradient(90deg, rgba(0,0,0,.20) 0%, rgba(0,0,0,.08) 38%, rgba(0,0,0,.20) 100%),
+      linear-gradient(180deg, rgba(7,10,20,.10) 0%, rgba(7,10,20,.26) 100%);
+    z-index:1;
+  }
+
+  .partialOnlyInner{
+    position:relative;
+    z-index:2;
+    min-height:148px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    padding:16px;
+  }
+
+  .partialOnlyPercent{
+    font-size:54px;
+    font-weight:900;
+    line-height:.95;
+    color:#111;
+    margin-bottom:8px;
+    text-shadow:0 2px 6px rgba(255,255,255,.18);
+  }
+
+  .partialOnlyTitle{
+    font-size:24px;
+    font-weight:800;
+    line-height:1.05;
+    color:#fff;
+    margin-bottom:8px;
+    text-wrap:balance;
+  }
+
+  .partialOnlyMeta{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:10px;
+    font-size:16px;
+    font-weight:800;
+    color:#fff;
+    line-height:1.2;
+  }
+
+  .partialOnlyDesc{
+    margin-top:8px;
+    font-size:13px;
+    line-height:1.35;
+    color:rgba(255,255,255,.94);
+    max-width:38ch;
+    text-wrap:balance;
+  }
 
   @media (max-width:640px){
-    .momentCard{
+    .momentCard,
+    .partialOnlyCard{
       min-height:132px;
       border-radius:16px;
     }
@@ -613,6 +695,31 @@
     }
 
     .momentDesc{
+      font-size:12.5px;
+      margin-top:6px;
+    }
+
+    .partialOnlyInner{
+      min-height:132px;
+      padding:12px;
+    }
+
+    .partialOnlyPercent{
+      font-size:42px;
+      margin-bottom:6px;
+    }
+
+    .partialOnlyTitle{
+      font-size:18px;
+      margin-bottom:6px;
+    }
+
+    .partialOnlyMeta{
+      gap:7px;
+      font-size:14px;
+    }
+
+    .partialOnlyDesc{
       font-size:12.5px;
       margin-top:6px;
     }
@@ -896,10 +1003,28 @@ function fmtMallorcaHmsFromDate(d){
   const d = astroToDate(x);
   return d ? fmtMallorcaHmsFromDate(d) : "—";
 }
+function isMomentVisible(hor){
+  return !!(hor && Number.isFinite(hor.alt) && hor.alt > 0);
+}
+
 function eclipseMomentCardHtml(code, title, timeAstro, hor, imagePath, desc, transform = "none"){
+  const visible = isMomentVisible(hor);
   const timeTxt = fmtLocalTimeAstroSec(timeAstro);
   const altTxt = hor && Number.isFinite(hor.alt) ? `${hor.alt.toFixed(1)}°` : "—";
   const azTxt  = hor && Number.isFinite(hor.az)  ? `${hor.az.toFixed(1)}°`  : "—";
+
+  const metaTxt = visible
+    ? `
+      <span>${timeTxt}</span>
+      <span class="dot">•</span>
+      <span>alt ${altTxt}</span>
+      <span class="dot">•</span>
+      <span>az ${azTxt}</span>
+    `
+    : `
+      <span>No visible des d’aquest punt</span>
+      ${hor && Number.isFinite(hor.alt) ? `<span class="dot">•</span><span>alt ${altTxt}</span>` : ``}
+    `;
 
   return `
     <div class="momentCard" style="--moment-image:url('${imagePath}'); --moment-transform:${transform};">
@@ -910,14 +1035,41 @@ function eclipseMomentCardHtml(code, title, timeAstro, hor, imagePath, desc, tra
           <div class="momentTitle">${title}</div>
 
           <div class="momentMeta">
-            <span>${timeTxt}</span>
-            <span class="dot">•</span>
-            <span>alt ${altTxt}</span>
-            <span class="dot">•</span>
-            <span>az ${azTxt}</span>
+            ${metaTxt}
           </div>
 
           <div class="momentDesc">${desc}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function partialOnlyCardHtml(info){
+  const obsc = Number.isFinite(info.obscuration)
+    ? `${(info.obscuration * 100).toFixed(1)}%`
+    : "—";
+
+  const altTxt = info.hMax && Number.isFinite(info.hMax.alt) ? `${info.hMax.alt.toFixed(1)}°` : "—";
+  const azTxt  = info.hMax && Number.isFinite(info.hMax.az)  ? `${info.hMax.az.toFixed(1)}°`  : "—";
+  const timeTxt = fmtLocalTimeAstroSec(info.max);
+
+  return `
+    <div class="partialOnlyCard">
+      <div class="partialOnlyInner">
+        <div class="partialOnlyPercent">${obsc}</div>
+        <div class="partialOnlyTitle">Màxim de parcialitat</div>
+
+        <div class="partialOnlyMeta">
+          <span>${timeTxt}</span>
+          <span class="dot">•</span>
+          <span>alt ${altTxt}</span>
+          <span class="dot">•</span>
+          <span>az ${azTxt}</span>
+        </div>
+
+        <div class="partialOnlyDesc">
+          En aquest punt no hi ha totalitat ni anularitat; només s’observa una fase parcial de l’eclipsi.
         </div>
       </div>
     </div>
@@ -1209,13 +1361,18 @@ function renderLocalEclipseSummary(lat, lon, alt, info, obstacleSet){
 
   eclipseCard.style.display = "block";
 
-  const obsc = Number.isFinite(info.obscuration)
+   const obsc = Number.isFinite(info.obscuration)
     ? `${(info.obscuration * 100).toFixed(2)}%`
     : "—";
 
-  const mag = Number.isFinite(info.magnitude)
-    ? info.magnitude.toFixed(4)
-    : "—";
+  const hasCentral = !!(info.c2 && info.c3 && info.max);
+  const typeLabel = info.kind === "Eclipsi total"
+    ? "Total"
+    : info.kind === "Eclipsi anular"
+      ? "Anular"
+      : Number.isFinite(info.obscuration)
+        ? `Parcial · ${obsc}`
+        : "Parcial";
 
   const altMax = info.hMax && Number.isFinite(info.hMax.alt) ? `${info.hMax.alt.toFixed(1)}°` : "—";
   const azMax  = info.hMax && Number.isFinite(info.hMax.az)  ? `${info.hMax.az.toFixed(1)}°`  : "—";
@@ -1252,26 +1409,6 @@ if (obstacleSet === null) {
 }
 
   eclipseInfo.innerHTML = `
-    <div class="summaryHero">
-      <div class="summaryMetric">
-        <div class="summaryMetricLabel">Obscuració</div>
-        <div class="summaryMetricValue">${obsc}</div>
-        <div class="summaryMetricSub">Cobertura màxima del disc solar</div>
-      </div>
-
-      <div class="summaryMetric">
-        <div class="summaryMetricLabel">Durada totalitat</div>
-        <div class="summaryMetricValue">${fmtDurSeconds(info.durationSec)}</div>
-        <div class="summaryMetricSub">Si el punt entra dins la banda total</div>
-      </div>
-
-      <div class="summaryMetric">
-        <div class="summaryMetricLabel">Sol al màxim</div>
-        <div class="summaryMetricValue">${altMax}</div>
-        <div class="summaryMetricSub">Azimut ${azMax}</div>
-      </div>
-    </div>
-
     <div class="summaryBlock">
       <div class="summaryBlockTitle">Moments de l’eclipsi · hora local</div>
 
@@ -1285,34 +1422,46 @@ if (obstacleSet === null) {
           "La Lluna comença a entrar davant el Sol i s’inicia la fase parcial."
         )}
 
-        ${eclipseMomentCardHtml(
-          "C2",
-          "Inici de totalitat",
-          info.c2,
-          info.hC2,
-          "assets/Moments/C2C3.png",
-          "Comença la totalitat: el disc solar queda completament cobert.",
-          "none"
-        )}
+        ${
+          hasCentral
+            ? eclipseMomentCardHtml(
+                "C2",
+                "Inici de totalitat",
+                info.c2,
+                info.hC2,
+                "assets/Moments/C2C3.png",
+                "Comença la totalitat: el disc solar queda completament cobert.",
+                "none"
+              )
+            : partialOnlyCardHtml(info)
+        }
 
-        ${eclipseMomentCardHtml(
-          "MAX",
-          "Màxim de l’eclipsi",
-          info.max,
-          info.hMax,
-          "assets/Moments/MAX.png",
-          "Moment central de l’eclipsi, amb l’alineació màxima entre Sol i Lluna."
-        )}
+        ${
+          hasCentral
+            ? eclipseMomentCardHtml(
+                "MAX",
+                "Màxim de l’eclipsi",
+                info.max,
+                info.hMax,
+                "assets/Moments/MAX.png",
+                "Moment central de l’eclipsi, amb l’alineació màxima entre Sol i Lluna."
+              )
+            : ``
+        }
 
-        ${eclipseMomentCardHtml(
-          "C3",
-          "Fi de totalitat",
-          info.c3,
-          info.hC3,
-          "assets/Moments/C2C3.png",
-          "La totalitat s’acaba i torna a aparèixer el primer llum solar.",
-          "rotate(180deg)"
-        )}
+        ${
+          hasCentral
+            ? eclipseMomentCardHtml(
+                "C3",
+                "Fi de totalitat",
+                info.c3,
+                info.hC3,
+                "assets/Moments/C2C3.png",
+                "La totalitat s’acaba i torna a aparèixer el primer llum solar.",
+                "rotate(180deg)"
+              )
+            : ``
+        }
 
         ${eclipseMomentCardHtml(
           "C4",
@@ -1323,6 +1472,26 @@ if (obstacleSet === null) {
           "La Lluna surt completament del disc solar i l’eclipsi finalitza.",
           "rotate(180deg)"
         )}
+      </div>
+    </div>
+
+    <div class="summaryHero">
+      <div class="summaryMetric">
+        <div class="summaryMetricLabel">Tipus d’eclipsi</div>
+        <div class="summaryMetricValue">${typeLabel}</div>
+        <div class="summaryMetricSub">Classificació al punt seleccionat</div>
+      </div>
+
+      <div class="summaryMetric">
+        <div class="summaryMetricLabel">Durada totalitat</div>
+        <div class="summaryMetricValue">${fmtDurSeconds(info.durationSec)}</div>
+        <div class="summaryMetricSub">Només si aquest punt entra dins la banda central</div>
+      </div>
+
+      <div class="summaryMetric">
+        <div class="summaryMetricLabel">Sol al màxim</div>
+        <div class="summaryMetricValue">${altMax}</div>
+        <div class="summaryMetricSub">Azimut ${azMax}</div>
       </div>
     </div>
 
@@ -1338,7 +1507,7 @@ if (obstacleSet === null) {
 
         <div class="summaryRow">
           <div class="summaryRowLabel">Posta local</div>
-          <div class="summaryRowValue">${obstacleTxt === "Calculant…" ? "Calculant…" : obstacleTxt === "No disponible" ? "No disponible" : obstacleTxt.replace(/^(\d{2}:\d{2}:\d{2})/, '$1')}</div>
+          <div class="summaryRowValue">${obstacleTxt === "Calculant…" ? "Calculant…" : obstacleTxt === "No disponible" ? "No disponible" : obstacleTxt}</div>
         </div>
       </div>
     </div>
