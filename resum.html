@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="ca">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+  <title>Resum local de l’eclipsi</title>
+
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#000000">
+  <meta name="mobile-web-app-capable" content="yes">
+
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Horitzó 2026">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+
+  <script src="js/astronomy.browser.min.js"></script>
+  <script type="module">
+    import { HorizonEngine } from "./data/horizon_engine.js";
+
+    window.__INDEX_HORIZON_ENGINE__ = new HorizonEngine({
+      tileZoom: 12,
+      observerHeightM: 1.7,
+      refractionK: 0.13,
+      tileOptions: { maxTiles: 256 }
+    });
+  </script>
+
+  <style>
+    :root{
+      --bg:#050816;
+      --bg-2:#0a1124;
+      --card:rgba(18,25,45,.72);
+      --text:#f4f7ff;
+      --muted:rgba(222,230,247,.72);
+      --border:rgba(167,188,255,.14);
+      --border-strong:rgba(167,188,255,.22);
+      --accent:#7dd3fc;
+      --accent-2:#a78bfa;
+      --ok:#86efac;
+      --bad:#fca5a5;
+      --shadow:0 18px 50px rgba(0,0,0,.35);
+      --shadow-soft:0 8px 24px rgba(0,0,0,.24);
+      --radius:18px;
+    }
+
+    *{box-sizing:border-box;}
+
+    html{
+      color-scheme:dark;
+      -webkit-text-size-adjust:100%;
+    }
+
+    body{
+      margin:0;
+      min-height:100vh;
+      color:var(--text);
+      font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      background:
+        radial-gradient(circle at top center, rgba(125,211,252,.10), transparent 24%),
+        radial-gradient(circle at 20% 10%, rgba(167,139,250,.10), transparent 20%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+      letter-spacing:.01em;
+    }
+
+    .wrap{
+      max-width:760px;
+      margin:0 auto;
+      padding:26px 16px 40px;
+    }
+
+    .hero{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:10px;
+      margin-bottom:18px;
+    }
+
+    .heroTop{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+
+    .heroLogo{
+      width:38px;
+      height:38px;
+      object-fit:contain;
+      filter: drop-shadow(0 0 10px rgba(125,211,252,.45));
+    }
+
+    .eyebrow{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:7px 12px;
+      margin-bottom:12px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.04);
+      color:var(--muted);
+      font-size:12px;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      backdrop-filter:blur(8px);
+    }
+
+    .eyebrow::before{
+      content:"";
+      width:8px;
+      height:8px;
+      border-radius:50%;
+      background:linear-gradient(180deg,var(--accent),var(--accent-2));
+      box-shadow:0 0 14px rgba(125,211,252,.55);
+    }
+
+    .title{
+      font-size:clamp(28px,4.8vw,40px);
+      line-height:1.05;
+      font-weight:800;
+      letter-spacing:-.03em;
+      margin:0 0 10px;
+      text-wrap:balance;
+    }
+
+    .sub{
+      color:var(--muted);
+      margin:0 auto;
+      line-height:1.5;
+      max-width:60ch;
+      font-size:15.5px;
+      text-align:center;
+    }
+
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02));
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      padding:16px;
+      margin:14px 0;
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(12px);
+    }
+
+    button{
+      appearance:none;
+      background:rgba(255,255,255,.035);
+      color:var(--text);
+      border:1px solid var(--border);
+      padding:12px 14px;
+      border-radius:14px;
+      font-size:15px;
+      font-weight:600;
+      cursor:pointer;
+      transition:
+        transform .14s ease,
+        border-color .18s ease,
+        background .18s ease,
+        box-shadow .18s ease;
+      box-shadow:var(--shadow-soft);
+    }
+
+    button:hover{
+      border-color:var(--border-strong);
+      background:rgba(255,255,255,.06);
+    }
+
+    button:active{
+      transform:translateY(1px) scale(.995);
+    }
+
+    button.primary{
+      background:linear-gradient(135deg,var(--accent),var(--accent-2));
+      border-color:transparent;
+      color:#07111f;
+      font-weight:800;
+    }
+
+    .sectionTitle{
+      font-size:15px;
+      font-weight:700;
+      margin:0 0 10px;
+      color:var(--text);
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+
+    .sectionTitle::before{
+      content:"";
+      width:9px;
+      height:9px;
+      border-radius:50%;
+      background:linear-gradient(180deg,var(--accent),var(--accent-2));
+      box-shadow:0 0 14px rgba(125,211,252,.45);
+      flex:0 0 auto;
+    }
+
+    .ctaRow{
+      margin-top:14px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+
+    .hint{
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.45;
+      margin-top:8px;
+    }
+
+    .bad{color:var(--bad);}
+
+    #locationInfo{
+      font-size:15px;
+      line-height:1.55;
+    }
+
+    #locationInfo b{
+      color:var(--text);
+    }
+
+    #eclipseInfo{
+      font-size:15px;
+      line-height:1.6;
+    }
+
+    #eclipseInfo > div{
+      margin:0 0 7px;
+    }
+
+    .summaryHero{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0,1fr));
+      gap:10px;
+      margin-bottom:14px;
+    }
+
+    .summaryMetric{
+      background:rgba(255,255,255,.035);
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:12px;
+    }
+
+    .summaryMetricLabel{
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:var(--muted);
+      margin-bottom:6px;
+    }
+
+    .summaryMetricValue{
+      font-size:20px;
+      font-weight:800;
+      line-height:1.1;
+      color:var(--text);
+    }
+
+    .summaryMetricSub{
+      margin-top:4px;
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    .summaryBlock{
+      margin-top:14px;
+      padding-top:12px;
+      border-top:1px solid rgba(255,255,255,.08);
+    }
+
+    .summaryBlock:first-child{
+      margin-top:0;
+      padding-top:0;
+      border-top:0;
+    }
+
+    .summaryBlockTitle{
+      font-size:13px;
+      font-weight:700;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:var(--accent);
+      margin:0 0 10px;
+    }
+
+    .summaryList{
+      display:grid;
+      gap:7px;
+    }
+
+    .summaryRow{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:12px;
+      padding:8px 0;
+      border-bottom:1px solid rgba(255,255,255,.05);
+    }
+
+    .summaryRow:last-child{
+      border-bottom:0;
+    }
+
+    .summaryRowLabel{
+      color:var(--muted);
+      font-weight:600;
+    }
+
+    .summaryRowValue{
+      text-align:right;
+      color:var(--text);
+    }
+
+    .summaryNote{
+      margin-top:10px;
+      font-size:12.5px;
+      color:var(--muted);
+      line-height:1.45;
+    }
+
+    .summarySimLine{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:8px;
+      padding:8px 0;
+      border-bottom:1px solid rgba(255,255,255,.05);
+    }
+
+    .summarySimLine:last-child{
+      border-bottom:0;
+    }
+
+    .miniBtn{
+      appearance:none;
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border:1px solid var(--border);
+      padding:6px 10px;
+      border-radius:10px;
+      font-size:12px;
+      font-weight:700;
+      cursor:pointer;
+    }
+
+    .miniBtn:hover{
+      background:rgba(255,255,255,.08);
+      border-color:var(--border-strong);
+    }
+
+    .momentGrid{
+      display:grid;
+      gap:12px;
+    }
+
+    .momentCard{
+      position:relative;
+      min-height:148px;
+      border-radius:18px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.10);
+      background:#10182d;
+      box-shadow:0 12px 28px rgba(0,0,0,.28);
+      isolation:isolate;
+    }
+
+    .momentCard::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background-image:var(--moment-image);
+      background-size:cover;
+      background-position:center;
+      background-repeat:no-repeat;
+      transform:var(--moment-transform, none);
+      transform-origin:center;
+      z-index:0;
+    }
+
+    .momentCard::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:
+        linear-gradient(90deg, rgba(0,0,0,.34) 0%, rgba(0,0,0,.12) 38%, rgba(0,0,0,.34) 100%),
+        linear-gradient(180deg, rgba(7,10,20,.18) 0%, rgba(7,10,20,.36) 100%);
+      z-index:1;
+    }
+
+    .momentInner{
+      position:relative;
+      z-index:2;
+      min-height:148px;
+      display:grid;
+      grid-template-columns:118px 1fr;
+      gap:14px;
+      align-items:center;
+      padding:14px 16px;
+    }
+
+    .momentCode{
+      font-size:88px;
+      line-height:.9;
+      font-weight:900;
+      letter-spacing:-.06em;
+      color:rgba(0,0,0,.78);
+      text-shadow:0 2px 2px rgba(255,255,255,.05);
+      user-select:none;
+    }
+
+    .momentInfo{
+      min-width:0;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+    }
+
+    .momentTitle{
+      font-size:21px;
+      font-weight:800;
+      line-height:1.05;
+      color:#fff;
+      margin:0 0 8px;
+      text-wrap:balance;
+    }
+
+    .momentMeta{
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:center;
+      gap:10px;
+      font-size:16px;
+      font-weight:800;
+      color:#fff;
+      line-height:1.2;
+    }
+
+    .momentMeta .dot{
+      opacity:.68;
+      font-weight:700;
+    }
+
+    .momentDesc{
+      margin-top:8px;
+      font-size:13px;
+      line-height:1.35;
+      color:rgba(255,255,255,.92);
+      max-width:34ch;
+      text-wrap:balance;
+    }
+
+    .partialOnlyCard{
+      position:relative;
+      min-height:148px;
+      height:148px;
+      border-radius:18px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.10);
+      background:linear-gradient(180deg, #2eaed6 0%, #2a84a5 100%);
+      box-shadow:0 12px 28px rgba(0,0,0,.28);
+      isolation:isolate;
+    }
+
+    .partialOnlyCard::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0)),
+        linear-gradient(90deg, rgba(0,0,0,.14), rgba(0,0,0,.04) 35%, rgba(0,0,0,.14));
+      z-index:0;
+      pointer-events:none;
+    }
+
+    .partialOnlyInner{
+      position:relative;
+      z-index:2;
+      height:100%;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      text-align:center;
+      padding:10px 16px 12px;
+    }
+
+    .partialOnlySky{
+      position:relative;
+      width:100%;
+      height:54px;
+      margin-bottom:2px;
+      pointer-events:none;
+    }
+
+    .partialDiscSun,
+    .partialDiscMoon{
+      position:absolute;
+      top:50%;
+      width:106px;
+      height:106px;
+      border-radius:50%;
+      transform:translate(-50%, -50%);
+    }
+
+    .partialDiscSun{
+      left:calc(var(--partial-sun-x, 38) * 1%);
+      background:#fbbc04;
+      box-shadow:0 0 24px rgba(251,188,4,.18);
+      z-index:1;
+    }
+
+    .partialDiscMoon{
+      left:calc(var(--partial-moon-x, 50) * 1%);
+      background:#2f2f31;
+      z-index:2;
+    }
+
+    .partialOnlyPercent{
+      position:relative;
+      z-index:3;
+      font-size:42px;
+      font-weight:900;
+      line-height:.95;
+      color:#111;
+      margin-bottom:4px;
+      text-shadow:0 2px 6px rgba(255,255,255,.18);
+    }
+
+    .partialOnlyTitle{
+      position:relative;
+      z-index:3;
+      font-size:19px;
+      font-weight:800;
+      line-height:1.05;
+      color:#fff;
+      margin-bottom:5px;
+      text-wrap:balance;
+    }
+
+    .partialOnlyMeta{
+      position:relative;
+      z-index:3;
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:center;
+      gap:8px;
+      font-size:14px;
+      font-weight:800;
+      color:#fff;
+      line-height:1.2;
+    }
+
+    .partialOnlyDesc{
+      position:relative;
+      z-index:3;
+      margin-top:6px;
+      font-size:11.5px;
+      line-height:1.28;
+      color:rgba(255,255,255,.94);
+      max-width:42ch;
+      text-wrap:balance;
+    }
+
+    @media (max-width:640px){
+      .momentCard,
+      .partialOnlyCard{
+        min-height:132px;
+        border-radius:16px;
+      }
+
+      .momentInner{
+        min-height:132px;
+        grid-template-columns:82px 1fr;
+        gap:10px;
+        padding:12px;
+      }
+
+      .momentCode{
+        font-size:64px;
+      }
+
+      .momentTitle{
+        font-size:17px;
+        margin-bottom:6px;
+      }
+
+      .momentMeta{
+        gap:7px;
+        font-size:14px;
+      }
+
+      .momentDesc{
+        font-size:12.5px;
+        margin-top:6px;
+      }
+
+      .partialOnlyCard{
+        min-height:132px;
+        height:132px;
+      }
+
+      .partialOnlyInner{
+        height:100%;
+        padding:8px 10px 10px;
+      }
+
+      .partialOnlySky{
+        height:42px;
+        margin-bottom:0;
+      }
+
+      .partialDiscSun,
+      .partialDiscMoon{
+        width:82px;
+        height:82px;
+      }
+
+      .partialOnlyPercent{
+        font-size:32px;
+        margin-bottom:3px;
+      }
+
+      .partialOnlyTitle{
+        font-size:16px;
+        margin-bottom:4px;
+      }
+
+      .partialOnlyMeta{
+        gap:6px;
+        font-size:12.5px;
+      }
+
+      .partialOnlyDesc{
+        font-size:10.8px;
+        margin-top:4px;
+        line-height:1.2;
+      }
+
+      .summaryHero{
+        grid-template-columns:1fr;
+      }
+
+      .summaryRow{
+        flex-direction:column;
+        align-items:flex-start;
+        gap:4px;
+      }
+
+      .summaryRowValue{
+        text-align:left;
+      }
+
+      .wrap{
+        padding:20px 12px 28px;
+      }
+
+      .card{
+        padding:14px;
+        border-radius:16px;
+      }
+
+      .title{
+        font-size:30px;
+      }
+
+      .sub{
+        font-size:14.5px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div class="heroTop">
+        <img src="assets/icons/icon-512.png" class="heroLogo" alt="Logo Horitzó Eclipsi 2026">
+        <div class="eyebrow">AstroMallorca · Eclipsi total 2026</div>
+      </div>
+
+      <div class="title">Resum local de l’eclipsi</div>
+      <p class="sub">Consulta els moments de l’eclipsi, la simulació i la posta de Sol per a la localització seleccionada abans d’obrir el visor de l’horitzó.</p>
+    </div>
+
+    <div class="card" id="locationCard">
+      <div class="sectionTitle">Localització seleccionada</div>
+      <div id="locationInfo" class="hint">Carregant dades de la localització…</div>
+
+      <div class="ctaRow">
+        <button id="btnBack">← Canviar localització</button>
+        <button class="primary" id="btnOpenHorizon">Veure horitzó →</button>
+      </div>
+    </div>
+
+    <div class="card" id="eclipseCard" style="display:none;">
+      <div class="sectionTitle">Resum de l’eclipsi al punt seleccionat</div>
+      <div id="eclipseInfo" class="hint">—</div>
+    </div>
+  </div>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./service-worker.js").catch(()=>{});
+      });
+    }
+  </script>
+</body>
+</html>
