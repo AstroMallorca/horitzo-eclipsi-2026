@@ -780,7 +780,15 @@
         hour12: false
       }).format(d);
     }
-
+function fmtMallorcaDateFromDate(d){
+  if(!(d instanceof Date)) return "—";
+  return new Intl.DateTimeFormat("ca-ES", {
+    timeZone: "Europe/Madrid",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  }).format(d);
+}
     function isMomentVisible(hor){
       return !!(hor && Number.isFinite(hor.alt) && hor.alt > 0);
     }
@@ -1357,21 +1365,36 @@
         eclipseCard.style.display = "none";
       }
     }
+function updateLocationCard(){
+  if(!Number.isFinite(lat) || !Number.isFinite(lon)){
+    locationInfo.innerHTML = `<span class="bad">Falten coordenades vàlides a la URL.</span>`;
+    return;
+  }
 
-    function updateLocationCard(){
-      if(!Number.isFinite(lat) || !Number.isFinite(lon)){
-        locationInfo.innerHTML = `<span class="bad">Falten coordenades vàlides a la URL.</span>`;
-        return;
-      }
+  let peakDateLocal = "—";
+  let peakTimeLocal = "—";
 
-      locationInfo.innerHTML = `
-        <div><b>Coordenades:</b> ${lat.toFixed(6)}, ${lon.toFixed(6)}</div>
-        <div><b>Altitud:</b> ${Math.round(alt)} m</div>
-        <div><b>Data:</b> ${dateStr}</div>
-        <div><b>Hora clau:</b> ${centerUtc} UTC</div>
-        <div><b>Rang orografia:</b> ${Math.round(rangeKm)} km</div>
-      `;
+  try{
+    const obs = new Astronomy.Observer(lat, lon, Number.isFinite(alt) ? alt : 0);
+    const date = new Date(Date.UTC(2026, 7, 12, 0, 0, 0));
+    const ecl = Astronomy.SearchLocalSolarEclipse(date, obs);
+
+    const peakDateObj = astroToDate(ecl?.peak?.time || null);
+    if(peakDateObj instanceof Date){
+      peakDateLocal = fmtMallorcaDateFromDate(peakDateObj);
+      peakTimeLocal = fmtMallorcaHmsFromDate(peakDateObj);
     }
+  }catch(err){
+    console.warn("No s'ha pogut calcular la data/hora local del màxim", err);
+  }
+
+  locationInfo.innerHTML = `
+    <div><b>Coordenades:</b> ${lat.toFixed(6)}, ${lon.toFixed(6)}</div>
+    <div><b>Altitud:</b> ${Math.round(alt)} m</div>
+    <div><b>Data:</b> ${peakDateLocal}</div>
+    <div><b>Hora del màxim:</b> ${peakTimeLocal}</div>
+  `;
+}
 
     btnBack.addEventListener("click", () => {
       const url = new URL("index.html", location.href);
