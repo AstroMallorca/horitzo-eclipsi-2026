@@ -127,7 +127,14 @@ document.getElementById("meta").textContent =
   `lat ${PARAMS.lat.toFixed(4)}, lon ${PARAMS.lon.toFixed(4)}, alt ${Math.round(PARAMS.alt)} m · ${PARAMS.date} ${PARAMS.centerUtc} UTC · rang ${Math.round(PARAMS.rangeKm)} km`;
 
 document.getElementById("backBtn").addEventListener("click", () => {
-  location.href = "index.html";
+  const url = new URL("resum.html", location.href);
+  url.searchParams.set("lat", PARAMS.lat.toFixed(6));
+  url.searchParams.set("lon", PARAMS.lon.toFixed(6));
+  url.searchParams.set("alt", String(Math.round(PARAMS.alt)));
+  url.searchParams.set("rangeKm", String(Math.round(PARAMS.rangeKm)));
+  url.searchParams.set("date", PARAMS.date);
+  url.searchParams.set("centerUtc", PARAMS.centerUtc);
+  location.href = url.toString();
 });
 
 const VIEW = {
