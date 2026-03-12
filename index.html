@@ -985,7 +985,8 @@ if (!btnMap || !mapModal || !mapOk || !mapCancel || !mapClose || !mapInfo) {
     enableGoIfReady();
     closeMapModal();
   });
-  let chosen = null; // "gps" | "manual"
+}
+let chosen = null; // "gps" | "manual"
   let current = {lat:null, lon:null, alt:null};
 
   function setStatus(msg, ok){
