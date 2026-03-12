@@ -482,7 +482,141 @@
     background:rgba(255,255,255,.08);
     border-color:var(--border-strong);
   }
+  .momentGrid{
+    display:grid;
+    gap:12px;
+  }
 
+  .momentCard{
+    position:relative;
+    min-height:148px;
+    border-radius:18px;
+    overflow:hidden;
+    border:1px solid rgba(255,255,255,.10);
+    background:#10182d;
+    box-shadow:0 12px 28px rgba(0,0,0,.28);
+    isolation:isolate;
+  }
+
+  .momentCard::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background-image:var(--moment-image);
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+    transform:var(--moment-transform, none);
+    transform-origin:center;
+    z-index:0;
+  }
+
+  .momentCard::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:
+      linear-gradient(90deg, rgba(0,0,0,.34) 0%, rgba(0,0,0,.12) 38%, rgba(0,0,0,.34) 100%),
+      linear-gradient(180deg, rgba(7,10,20,.18) 0%, rgba(7,10,20,.36) 100%);
+    z-index:1;
+  }
+
+  .momentInner{
+    position:relative;
+    z-index:2;
+    min-height:148px;
+    display:grid;
+    grid-template-columns:118px 1fr;
+    gap:14px;
+    align-items:center;
+    padding:14px 16px;
+  }
+
+  .momentCode{
+    font-size:88px;
+    line-height:.9;
+    font-weight:900;
+    letter-spacing:-.06em;
+    color:rgba(0,0,0,.78);
+    text-shadow:0 2px 2px rgba(255,255,255,.05);
+    user-select:none;
+  }
+
+  .momentInfo{
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+  }
+
+  .momentTitle{
+    font-size:21px;
+    font-weight:800;
+    line-height:1.05;
+    color:#fff;
+    margin:0 0 8px;
+    text-wrap:balance;
+  }
+
+  .momentMeta{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:10px;
+    font-size:16px;
+    font-weight:800;
+    color:#fff;
+    line-height:1.2;
+  }
+
+  .momentMeta .dot{
+    opacity:.68;
+    font-weight:700;
+  }
+
+  .momentDesc{
+    margin-top:8px;
+    font-size:13px;
+    line-height:1.35;
+    color:rgba(255,255,255,.92);
+    max-width:34ch;
+    text-wrap:balance;
+  }
+
+  @media (max-width:640px){
+    .momentCard{
+      min-height:132px;
+      border-radius:16px;
+    }
+
+    .momentInner{
+      min-height:132px;
+      grid-template-columns:82px 1fr;
+      gap:10px;
+      padding:12px;
+    }
+
+    .momentCode{
+      font-size:64px;
+    }
+
+    .momentTitle{
+      font-size:17px;
+      margin-bottom:6px;
+    }
+
+    .momentMeta{
+      gap:7px;
+      font-size:14px;
+    }
+
+    .momentDesc{
+      font-size:12.5px;
+      margin-top:6px;
+    }
+  }
   @media (max-width:640px){
     .summaryHero{
       grid-template-columns:1fr;
@@ -762,7 +896,33 @@ function fmtMallorcaHmsFromDate(d){
   const d = astroToDate(x);
   return d ? fmtMallorcaHmsFromDate(d) : "—";
 }
+function eclipseMomentCardHtml(code, title, timeAstro, hor, imagePath, desc, transform = "none"){
+  const timeTxt = fmtLocalTimeAstroSec(timeAstro);
+  const altTxt = hor && Number.isFinite(hor.alt) ? `${hor.alt.toFixed(1)}°` : "—";
+  const azTxt  = hor && Number.isFinite(hor.az)  ? `${hor.az.toFixed(1)}°`  : "—";
 
+  return `
+    <div class="momentCard" style="--moment-image:url('${imagePath}'); --moment-transform:${transform};">
+      <div class="momentInner">
+        <div class="momentCode">${code}</div>
+
+        <div class="momentInfo">
+          <div class="momentTitle">${title}</div>
+
+          <div class="momentMeta">
+            <span>${timeTxt}</span>
+            <span class="dot">•</span>
+            <span>alt ${altTxt}</span>
+            <span class="dot">•</span>
+            <span>az ${azTxt}</span>
+          </div>
+
+          <div class="momentDesc">${desc}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
 function angleDiffDeg(a, b){
   let d = Math.abs(a - b) % 360;
   if (d > 180) d = 360 - d;
@@ -1113,32 +1273,56 @@ if (obstacleSet === null) {
     </div>
 
     <div class="summaryBlock">
-      <div class="summaryBlockTitle">Fases de l’eclipsi · hora local</div>
-      <div class="summaryList">
-        <div class="summaryRow">
-          <div class="summaryRowLabel">C1</div>
-          <div class="summaryRowValue">${fmtLocalTimeAstroSec(info.c1)}${info.hC1 ? ` · alt ${info.hC1.alt.toFixed(1)}° · az ${info.hC1.az.toFixed(1)}°` : ""}</div>
-        </div>
+      <div class="summaryBlockTitle">Moments de l’eclipsi · hora local</div>
 
-        <div class="summaryRow">
-          <div class="summaryRowLabel">C2</div>
-          <div class="summaryRowValue">${fmtLocalTimeAstroSec(info.c2)}${info.hC2 ? ` · alt ${info.hC2.alt.toFixed(1)}° · az ${info.hC2.az.toFixed(1)}°` : ""}</div>
-        </div>
+      <div class="momentGrid">
+        ${eclipseMomentCardHtml(
+          "C1",
+          "Inici de parcialitat",
+          info.c1,
+          info.hC1,
+          "assets/Moments/CiC4.png",
+          "La Lluna comença a entrar davant el Sol i s’inicia la fase parcial."
+        )}
 
-        <div class="summaryRow">
-          <div class="summaryRowLabel">Màxim</div>
-          <div class="summaryRowValue">${fmtLocalTimeAstroSec(info.max)}${info.hMax ? ` · alt ${info.hMax.alt.toFixed(1)}° · az ${info.hMax.az.toFixed(1)}°` : ""}</div>
-        </div>
+        ${eclipseMomentCardHtml(
+          "C2",
+          "Inici de totalitat",
+          info.c2,
+          info.hC2,
+          "assets/Moments/C2C3.png",
+          "Comença la totalitat: el disc solar queda completament cobert.",
+          "none"
+        )}
 
-        <div class="summaryRow">
-          <div class="summaryRowLabel">C3</div>
-          <div class="summaryRowValue">${fmtLocalTimeAstroSec(info.c3)}${info.hC3 ? ` · alt ${info.hC3.alt.toFixed(1)}° · az ${info.hC3.az.toFixed(1)}°` : ""}</div>
-        </div>
+        ${eclipseMomentCardHtml(
+          "MAX",
+          "Màxim de l’eclipsi",
+          info.max,
+          info.hMax,
+          "assets/Moments/MAX.png",
+          "Moment central de l’eclipsi, amb l’alineació màxima entre Sol i Lluna."
+        )}
 
-        <div class="summaryRow">
-          <div class="summaryRowLabel">C4</div>
-          <div class="summaryRowValue">${fmtLocalTimeAstroSec(info.c4)}${info.hC4 ? ` · alt ${info.hC4.alt.toFixed(1)}° · az ${info.hC4.az.toFixed(1)}°` : ""}</div>
-        </div>
+        ${eclipseMomentCardHtml(
+          "C3",
+          "Fi de totalitat",
+          info.c3,
+          info.hC3,
+          "assets/Moments/C2C3.png",
+          "La totalitat s’acaba i torna a aparèixer el primer llum solar.",
+          "rotate(180deg)"
+        )}
+
+        ${eclipseMomentCardHtml(
+          "C4",
+          "Fi de parcialitat",
+          info.c4,
+          info.hC4,
+          "assets/Moments/CiC4.png",
+          "La Lluna surt completament del disc solar i l’eclipsi finalitza.",
+          "rotate(180deg)"
+        )}
       </div>
     </div>
 
