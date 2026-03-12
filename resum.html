@@ -705,6 +705,705 @@
   </div>
 
   <script>
+  <script>
+    const eclipseCard = document.getElementById("eclipseCard");
+    const eclipseInfo = document.getElementById("eclipseInfo");
+    const locationInfo = document.getElementById("locationInfo");
+    const btnBack = document.getElementById("btnBack");
+    const btnOpenHorizon = document.getElementById("btnOpenHorizon");
+
+    let __summaryReqId = 0;
+
+    const params = new URLSearchParams(location.search);
+
+    const lat = parseFloat(params.get("lat"));
+    const lon = parseFloat(params.get("lon"));
+    const alt = parseFloat(params.get("alt") ?? "0");
+    const rangeKm = parseFloat(params.get("rangeKm") ?? "200");
+    const dateStr = (params.get("date") || "2026-08-12").trim();
+    const centerUtc = (params.get("centerUtc") || "18:30").trim();
+
+    function fmtDurSeconds(sec){
+      if(!Number.isFinite(sec) || sec <= 0) return "—";
+      return `${sec.toFixed(1)} s`;
+    }
+
+    function fmtTimeAstroSec(x){
+      if(!x) return "—";
+      let t = x;
+
+      if (x.time) t = x.time;
+
+      if (t instanceof Date) return t.toISOString().slice(11,19);
+      if (t.date instanceof Date) return t.date.toISOString().slice(11,19);
+      if (typeof t.toDate === "function") {
+        const d = t.toDate();
+        return d instanceof Date ? d.toISOString().slice(11,19) : "—";
+      }
+      return "—";
+    }
+
+    function astroToDate(x){
+      if(!x) return null;
+
+      let t = x;
+      if (x.time) t = x.time;
+
+      if (t instanceof Date) return t;
+      if (t.date instanceof Date) return t.date;
+
+      if (typeof t.toDate === "function"){
+        const d = t.toDate();
+        return d instanceof Date ? d : null;
+      }
+
+      return null;
+    }
+
+    function fmtLocalTimeAstroSec(x){
+      const d = astroToDate(x);
+      return d ? new Intl.DateTimeFormat("ca-ES", {
+        timeZone: "Europe/Madrid",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+      }).format(d) : "—";
+    }
+
+    function fmtMallorcaHmsFromDate(d){
+      if(!(d instanceof Date)) return "—";
+      return new Intl.DateTimeFormat("ca-ES", {
+        timeZone: "Europe/Madrid",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+      }).format(d);
+    }
+
+    function isMomentVisible(hor){
+      return !!(hor && Number.isFinite(hor.alt) && hor.alt > 0);
+    }
+
+    function eclipseMomentCardHtml(code, title, timeAstro, hor, imagePath, desc, transform = "none"){
+      const visible = isMomentVisible(hor);
+      const timeTxt = fmtLocalTimeAstroSec(timeAstro);
+      const altTxt = hor && Number.isFinite(hor.alt) ? `${hor.alt.toFixed(1)}°` : "—";
+      const azTxt  = hor && Number.isFinite(hor.az)  ? `${hor.az.toFixed(1)}°`  : "—";
+
+      const metaTxt = visible
+        ? `
+          <span>${timeTxt}</span>
+          <span class="dot">•</span>
+          <span>alt ${altTxt}</span>
+          <span class="dot">•</span>
+          <span>az ${azTxt}</span>
+        `
+        : `
+          <span>No visible des d’aquest punt</span>
+          ${hor && Number.isFinite(hor.alt) ? `<span class="dot">•</span><span>alt ${altTxt}</span>` : ``}
+        `;
+
+      return `
+        <div class="momentCard" style="--moment-image:url('${imagePath}'); --moment-transform:${transform};">
+          <div class="momentInner">
+            <div class="momentCode">${code}</div>
+
+            <div class="momentInfo">
+              <div class="momentTitle">${title}</div>
+
+              <div class="momentMeta">
+                ${metaTxt}
+              </div>
+
+              <div class="momentDesc">${desc}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function separationFromObscurationFraction(p){
+      if(!Number.isFinite(p)) return 2;
+      if(p <= 0) return 2;
+      if(p >= 1) return 0;
+
+      function overlapFraction(d){
+        if(d <= 0) return 1;
+        if(d >= 2) return 0;
+
+        const area =
+          2 * Math.acos(d / 2) -
+          0.5 * d * Math.sqrt(Math.max(0, 4 - d*d));
+
+        return area / Math.PI;
+      }
+
+      let lo = 0;
+      let hi = 2;
+
+      for(let i = 0; i < 40; i++){
+        const mid = 0.5 * (lo + hi);
+        const f = overlapFraction(mid);
+
+        if(f > p) lo = mid;
+        else hi = mid;
+      }
+
+      return 0.5 * (lo + hi);
+    }
+
+    function partialOnlyCardHtml(info){
+      const obscValue = Number.isFinite(info.obscuration) ? info.obscuration : null;
+      const obsc = obscValue != null
+        ? `${(obscValue * 100).toFixed(1)}%`
+        : "—";
+
+      const altTxt = info.hMax && Number.isFinite(info.hMax.alt) ? `${info.hMax.alt.toFixed(1)}°` : "—";
+      const azTxt  = info.hMax && Number.isFinite(info.hMax.az)  ? `${info.hMax.az.toFixed(1)}°`  : "—";
+      const timeTxt = fmtLocalTimeAstroSec(info.max);
+
+      const sunX = 42;
+      const d = separationFromObscurationFraction(obscValue ?? 0.5);
+      const moonShiftPct = d * 16.5;
+      const moonX = sunX + moonShiftPct;
+
+      return `
+        <div class="partialOnlyCard" style="--partial-sun-x:${sunX}; --partial-moon-x:${moonX};">
+          <div class="partialOnlyInner">
+            <div class="partialOnlySky">
+              <div class="partialDiscSun"></div>
+              <div class="partialDiscMoon"></div>
+            </div>
+
+            <div class="partialOnlyPercent">${obsc}</div>
+            <div class="partialOnlyTitle">Màxim de parcialitat</div>
+
+            <div class="partialOnlyMeta">
+              <span>${timeTxt}</span>
+              <span class="dot">•</span>
+              <span>alt ${altTxt}</span>
+              <span class="dot">•</span>
+              <span>az ${azTxt}</span>
+            </div>
+
+            <div class="partialOnlyDesc">
+              En aquest punt no hi ha totalitat ni anularitat; només s’observa una fase parcial de l’eclipsi.
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function angleDiffDeg(a, b){
+      let d = Math.abs(a - b) % 360;
+      if (d > 180) d = 360 - d;
+      return d;
+    }
+
+    function sunHorAtDateForIndex(dateObj, obs){
+      if(!(dateObj instanceof Date)) return null;
+
+      const t = Astronomy.MakeTime(dateObj);
+      const eq = Astronomy.Equator("Sun", t, obs, true, true);
+      const hor = Astronomy.Horizon(t, obs, eq.ra, eq.dec, "normal");
+
+      let az = hor.azimuth;
+      if (az < 0) az += 360;
+      if (az >= 360) az -= 360;
+
+      return {
+        alt: hor.altitude,
+        az
+      };
+    }
+
+    function findBestSimulationForDate(obs, targetHor, year, monthIndex, day){
+      if(!targetHor || !Number.isFinite(targetHor.alt) || !Number.isFinite(targetHor.az)) return null;
+
+      const startMs = Date.UTC(year, monthIndex, day, 16, 0, 0);
+      const endMs   = Date.UTC(year, monthIndex, day, 21, 0, 0);
+
+      let best = null;
+
+      for(let ms = startMs; ms <= endMs; ms += 5000){
+        const d = new Date(ms);
+        const s = sunHorAtDateForIndex(d, obs);
+        if(!s) continue;
+
+        const dAlt = s.alt - targetHor.alt;
+        const dAz = angleDiffDeg(s.az, targetHor.az);
+        const score = Math.hypot(dAlt, dAz * Math.cos(targetHor.alt * Math.PI / 180));
+
+        if(!best || score < best.score){
+          best = {
+            date: d,
+            alt: s.alt,
+            az: s.az,
+            dAlt,
+            dAz,
+            score
+          };
+        }
+      }
+
+      return best;
+    }
+
+    function computeSimulationMatches(obs, targetHor){
+      if(!obs || !targetHor) return null;
+
+      const apr29 = findBestSimulationForDate(obs, targetHor, 2026, 3, 29);
+      const apr30 = findBestSimulationForDate(obs, targetHor, 2026, 3, 30);
+
+      let best = null;
+      if (apr29 && apr30) best = (apr29.score <= apr30.score) ? apr29 : apr30;
+      else best = apr29 || apr30 || null;
+
+      return { apr29, apr30, best };
+    }
+
+    function applySimulationDate(dateStr, hhmm){
+      const url = new URL(location.href);
+      url.searchParams.set("date", dateStr);
+      url.searchParams.set("centerUtc", hhmm);
+      location.href = url.toString();
+    }
+
+    function sunHorAtTimeForIndex(x, obs){
+      if(!x) return null;
+
+      let t = x;
+      if (x.time) t = x.time;
+      if (t instanceof Date) t = Astronomy.MakeTime(t);
+      if (t.date instanceof Date) t = Astronomy.MakeTime(t.date);
+
+      if (!t) return null;
+
+      const eq = Astronomy.Equator("Sun", t, obs, true, true);
+      const hor = Astronomy.Horizon(t, obs, eq.ra, eq.dec, "normal");
+
+      let az = hor.azimuth;
+      if (az < 0) az += 360;
+      if (az >= 360) az -= 360;
+
+      return {
+        alt: hor.altitude,
+        az
+      };
+    }
+
+    function classifyLocalEclipse(ecl){
+      if(!ecl) return "No disponible";
+
+      if (ecl.total_begin && ecl.total_end) return "Eclipsi total";
+      if (ecl.annular_begin && ecl.annular_end) return "Eclipsi anular";
+      if (ecl.partial_begin || ecl.partial_end) return "Eclipsi parcial";
+
+      return "Eclipsi solar";
+    }
+
+    function profileAltAtAz(profile, azDeg){
+      if(!profile || !profile.alt || !Number.isFinite(profile.az0) || !Number.isFinite(profile.daz)) return NaN;
+
+      const arr = profile.alt;
+      const f = (azDeg - profile.az0) / profile.daz;
+
+      if (!Number.isFinite(f)) return NaN;
+
+      const i0 = Math.floor(f);
+      const i1 = i0 + 1;
+
+      if (i0 < 0 || i1 >= arr.length) return NaN;
+
+      const v0 = arr[i0];
+      const v1 = arr[i1];
+
+      if (!Number.isFinite(v0) || !Number.isFinite(v1)) return NaN;
+
+      const t = f - i0;
+      return v0 + (v1 - v0) * t;
+    }
+
+    async function computeObstacleSunset(lat, lon, alt, seaSetTime){
+      const engine = window.__INDEX_HORIZON_ENGINE__;
+      if (!engine || !seaSetTime) return null;
+
+      const obs = new Astronomy.Observer(lat, lon, alt);
+      const seaHor = sunHorAtTimeForIndex(seaSetTime, obs);
+      if (!seaHor || !Number.isFinite(seaHor.az)) return null;
+
+      const centerAzDeg = seaHor.az;
+      const fovDeg = 10;
+      const samples = 80;
+      const maxDistM = 50000;
+
+      const result = await engine.computeProfile({
+        lat,
+        lon,
+        observerAltM: alt,
+        centerAzDeg,
+        fovDeg,
+        samples,
+        maxDistM
+      });
+
+      const profile = {
+        az0: result.az0,
+        daz: result.daz,
+        alt: Array.from(result.alt)
+      };
+
+      const SUN_R_DEG = 0.266;
+
+      let t0 = seaSetTime;
+      if (t0.time) t0 = t0.time;
+
+      let d0 = null;
+      if (t0 instanceof Date) d0 = t0;
+      else if (t0.date instanceof Date) d0 = t0.date;
+      else if (typeof t0.toDate === "function") d0 = t0.toDate();
+
+      if (!d0) return null;
+
+      const startMs = d0.getTime() - 45 * 60 * 1000;
+      const endMs   = d0.getTime() + 10 * 60 * 1000;
+
+      let prev = null;
+
+      for(let ms = startMs; ms <= endMs; ms += 15 * 1000){
+        const time = Astronomy.MakeTime(new Date(ms));
+        const s = sunHorAtTimeForIndex(time, obs);
+        if (!s) continue;
+
+        const hHor = profileAltAtAz(profile, s.az);
+        if (!Number.isFinite(hHor)) continue;
+
+        const delta = s.alt - (hHor - SUN_R_DEG);
+        const cur = { time, delta, az: s.az, alt: s.alt, hHor };
+
+        if (prev && prev.delta > 0 && cur.delta <= 0){
+          const dA = prev.delta;
+          const dB = cur.delta;
+          const f = dA / (dA - dB);
+
+          const tPrev = prev.time.toDate ? prev.time.toDate() : (prev.time.date || null);
+          const tCur  = cur.time.toDate ? cur.time.toDate() : (cur.time.date || null);
+
+          if (tPrev && tCur){
+            const hitDate = new Date(tPrev.getTime() + f * (tCur.getTime() - tPrev.getTime()));
+            const hitAz = prev.az + f * (cur.az - prev.az);
+            const hitAlt = prev.alt + f * (cur.alt - prev.alt);
+            const hitHor = prev.hHor + f * (cur.hHor - prev.hHor);
+
+            return {
+              time: Astronomy.MakeTime(hitDate),
+              az: hitAz,
+              alt: hitAlt,
+              hHor: hitHor,
+              profile
+            };
+          }
+        }
+
+        prev = cur;
+      }
+
+      return null;
+    }
+
+    function computeLocalEclipseSummary(lat, lon, alt){
+      const obs = new Astronomy.Observer(lat, lon, alt);
+
+      const date = new Date(Date.UTC(2026, 7, 12, 0, 0, 0));
+      const ecl = Astronomy.SearchLocalSolarEclipse(date, obs);
+
+      if(!ecl) return null;
+
+      const dayMidUTC = new Date(Date.UTC(2026, 7, 12, 12, 0, 0));
+      const sunset = Astronomy.SearchAltitude("Sun", obs, -1, dayMidUTC, 1, -0.833);
+
+      const c1 = ecl.partial_begin?.time || null;
+      const c2 = ecl.total_begin?.time || ecl.annular_begin?.time || null;
+      const max = ecl.peak?.time || null;
+      const c3 = ecl.total_end?.time || ecl.annular_end?.time || null;
+      const c4 = ecl.partial_end?.time || null;
+
+      const hC1 = sunHorAtTimeForIndex(c1, obs);
+      const hC2 = sunHorAtTimeForIndex(c2, obs);
+      const hMax = sunHorAtTimeForIndex(max, obs);
+      const hC3 = sunHorAtTimeForIndex(c3, obs);
+      const hC4 = sunHorAtTimeForIndex(c4, obs);
+      const hSet = sunHorAtTimeForIndex(sunset || null, obs);
+
+      let durationSec = null;
+      if (c2 && c3) {
+        const d2 = c2.date instanceof Date ? c2.date : (typeof c2.toDate === "function" ? c2.toDate() : null);
+        const d3 = c3.date instanceof Date ? c3.date : (typeof c3.toDate === "function" ? c3.toDate() : null);
+        if (d2 && d3) durationSec = (d3.getTime() - d2.getTime()) / 1000;
+      }
+
+      let simulation = null;
+      try{
+        simulation = computeSimulationMatches(obs, hMax);
+      }catch(err){
+        console.warn("No s'ha pogut calcular la simulació solar", err);
+        simulation = null;
+      }
+
+      return {
+        kind: classifyLocalEclipse(ecl),
+        obscuration: Number.isFinite(ecl.obscuration) ? ecl.obscuration : null,
+        magnitude: Number.isFinite(ecl.magnitude) ? ecl.magnitude : null,
+        c1, c2, max, c3, c4,
+        sunset: sunset || null,
+        hC1, hC2, hMax, hC3, hC4, hSet,
+        durationSec,
+        simulation
+      };
+    }
+
+    function renderLocalEclipseSummary(lat, lon, alt, info, obstacleSet){
+      if(!info){
+        eclipseCard.style.display = "none";
+        eclipseInfo.innerHTML = "—";
+        return;
+      }
+
+      eclipseCard.style.display = "block";
+
+      const obsc = Number.isFinite(info.obscuration)
+        ? `${(info.obscuration * 100).toFixed(2)}%`
+        : "—";
+
+      const hasCentral = !!(info.c2 && info.c3 && info.max);
+      const typeLabel = info.kind === "Eclipsi total"
+        ? "Total"
+        : info.kind === "Eclipsi anular"
+          ? "Anular"
+          : Number.isFinite(info.obscuration)
+            ? `Parcial · ${obsc}`
+            : "Parcial";
+
+      const altMax = info.hMax && Number.isFinite(info.hMax.alt) ? `${info.hMax.alt.toFixed(1)}°` : "—";
+      const azMax  = info.hMax && Number.isFinite(info.hMax.az)  ? `${info.hMax.az.toFixed(1)}°`  : "—";
+      const sim29 = info.simulation?.apr29 || null;
+      const sim30 = info.simulation?.apr30 || null;
+      const simBest = info.simulation?.best || null;
+
+      const sim29Date = sim29?.date ? sim29.date.toISOString().slice(0,10) : "2026-04-29";
+      const sim30Date = sim30?.date ? sim30.date.toISOString().slice(0,10) : "2026-04-30";
+
+      const sim29Hm = sim29?.date ? sim29.date.toISOString().slice(11,16) : "";
+      const sim30Hm = sim30?.date ? sim30.date.toISOString().slice(11,16) : "";
+
+      let obstacleTxt = "Calculant…";
+      if (obstacleSet === null) {
+        obstacleTxt = "No disponible";
+      } else if (obstacleSet) {
+        obstacleTxt = `${fmtLocalTimeAstroSec(obstacleSet.time)} · alt ${obstacleSet.alt.toFixed(1)}° · az ${obstacleSet.az.toFixed(1)}° · horitzó ${obstacleSet.hHor.toFixed(1)}°`;
+      }
+
+      eclipseInfo.innerHTML = `
+        <div class="summaryBlock">
+          <div class="summaryBlockTitle">Moments de l’eclipsi · hora local</div>
+
+          <div class="momentGrid">
+            ${eclipseMomentCardHtml(
+              "C1",
+              "Inici de parcialitat",
+              info.c1,
+              info.hC1,
+              "assets/Moments/C1C4.png",
+              "La Lluna comença a entrar davant el Sol i s’inicia la fase parcial."
+            )}
+
+            ${
+              hasCentral
+                ? eclipseMomentCardHtml(
+                    "C2",
+                    "Inici de totalitat",
+                    info.c2,
+                    info.hC2,
+                    "assets/Moments/C2C3.png",
+                    "Comença la totalitat: el disc solar queda completament cobert.",
+                    "none"
+                  )
+                : partialOnlyCardHtml(info)
+            }
+
+            ${
+              hasCentral
+                ? eclipseMomentCardHtml(
+                    "MAX",
+                    "Màxim de l’eclipsi",
+                    info.max,
+                    info.hMax,
+                    "assets/Moments/MAX.png",
+                    "Moment central de l’eclipsi, amb l’alineació màxima entre Sol i Lluna."
+                  )
+                : ``
+            }
+
+            ${
+              hasCentral
+                ? eclipseMomentCardHtml(
+                    "C3",
+                    "Fi de totalitat",
+                    info.c3,
+                    info.hC3,
+                    "assets/Moments/C2C3.png",
+                    "La totalitat s’acaba i torna a aparèixer el primer llum solar.",
+                    "rotate(180deg)"
+                  )
+                : ``
+            }
+
+            ${eclipseMomentCardHtml(
+              "C4",
+              "Fi de parcialitat",
+              info.c4,
+              info.hC4,
+              "assets/Moments/C1C4.png",
+              "La Lluna surt completament del disc solar i l’eclipsi finalitza.",
+              "rotate(180deg)"
+            )}
+          </div>
+        </div>
+
+        <div class="summaryHero">
+          <div class="summaryMetric">
+            <div class="summaryMetricLabel">Tipus d’eclipsi</div>
+            <div class="summaryMetricValue">${typeLabel}</div>
+            <div class="summaryMetricSub">Classificació al punt seleccionat</div>
+          </div>
+
+          <div class="summaryMetric">
+            <div class="summaryMetricLabel">Durada totalitat</div>
+            <div class="summaryMetricValue">${fmtDurSeconds(info.durationSec)}</div>
+            <div class="summaryMetricSub">Només si aquest punt entra dins la banda central</div>
+          </div>
+
+          <div class="summaryMetric">
+            <div class="summaryMetricLabel">Sol al màxim</div>
+            <div class="summaryMetricValue">${altMax}</div>
+            <div class="summaryMetricSub">Azimut ${azMax}</div>
+          </div>
+        </div>
+
+        <div class="summaryBlock">
+          <div class="summaryBlockTitle">Posta de sol</div>
+          <div class="summaryList">
+            <div class="summaryRow">
+              <div class="summaryRowLabel">Posta astronòmica</div>
+              <div class="summaryRowValue">
+                ${fmtLocalTimeAstroSec(info.sunset)}${info.hSet ? ` · alt ${info.hSet.alt.toFixed(1)}° · az ${info.hSet.az.toFixed(1)}°` : ""}
+              </div>
+            </div>
+
+            <div class="summaryRow">
+              <div class="summaryRowLabel">Posta local</div>
+              <div class="summaryRowValue">${obstacleTxt}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="summaryBlock">
+          <div class="summaryBlockTitle">Simulació solar · hora local</div>
+
+          <div class="summarySimLine">
+            <b>Millor coincidència:</b>
+            <span>${simBest?.date ? `${fmtMallorcaHmsFromDate(simBest.date)} · ${simBest.date.toISOString().slice(0,10)}` : "No disponible"}</span>
+          </div>
+
+          <div class="summarySimLine">
+            <b>29/04/2026:</b>
+            <span>${sim29?.date ? `${fmtMallorcaHmsFromDate(sim29.date)} · Δalt ${sim29.dAlt >= 0 ? "+" : ""}${sim29.dAlt.toFixed(2)}° · Δaz ${sim29.dAz.toFixed(2)}°` : "No disponible"}</span>
+            ${sim29?.date ? `<button type="button" onclick="applySimulationDate('${sim29Date}','${sim29Hm}')" class="miniBtn">Usar</button>` : ``}
+          </div>
+
+          <div class="summarySimLine">
+            <b>30/04/2026:</b>
+            <span>${sim30?.date ? `${fmtMallorcaHmsFromDate(sim30.date)} · Δalt ${sim30.dAlt >= 0 ? "+" : ""}${sim30.dAlt.toFixed(2)}° · Δaz ${sim30.dAz.toFixed(2)}°` : "No disponible"}</span>
+            ${sim30?.date ? `<button type="button" onclick="applySimulationDate('${sim30Date}','${sim30Hm}')" class="miniBtn">Usar</button>` : ``}
+          </div>
+
+          <div class="summaryNote">
+            La simulació cerca, per al 29 i 30 d’abril, l’instant en què el Sol s’assembla més a la posició que tindrà al màxim de l’eclipsi.
+          </div>
+        </div>
+      `;
+    }
+
+    async function refreshEclipseSummary(lat, lon, alt){
+      const reqId = ++__summaryReqId;
+
+      try{
+        const info = computeLocalEclipseSummary(lat, lon, alt);
+        renderLocalEclipseSummary(lat, lon, alt, info, undefined);
+
+        if(!info){
+          eclipseCard.style.display = "none";
+          return;
+        }
+
+        const obstacleSet = await computeObstacleSunset(lat, lon, alt, info.sunset);
+
+        if(reqId !== __summaryReqId) return;
+        renderLocalEclipseSummary(lat, lon, alt, info, obstacleSet ?? null);
+
+      }catch(err){
+        console.warn("No s'ha pogut calcular el resum de l'eclipsi", err);
+        eclipseCard.style.display = "none";
+      }
+    }
+
+    function updateLocationCard(){
+      if(!Number.isFinite(lat) || !Number.isFinite(lon)){
+        locationInfo.innerHTML = `<span class="bad">Falten coordenades vàlides a la URL.</span>`;
+        return;
+      }
+
+      locationInfo.innerHTML = `
+        <div><b>Coordenades:</b> ${lat.toFixed(6)}, ${lon.toFixed(6)}</div>
+        <div><b>Altitud:</b> ${Math.round(alt)} m</div>
+        <div><b>Data:</b> ${dateStr}</div>
+        <div><b>Hora clau:</b> ${centerUtc} UTC</div>
+        <div><b>Rang orografia:</b> ${Math.round(rangeKm)} km</div>
+      `;
+    }
+
+    btnBack.addEventListener("click", () => {
+      const url = new URL("index.html", location.href);
+      url.searchParams.set("lat", lat.toFixed(6));
+      url.searchParams.set("lon", lon.toFixed(6));
+      url.searchParams.set("alt", String(Math.round(alt)));
+      url.searchParams.set("rangeKm", String(Math.round(rangeKm)));
+      url.searchParams.set("date", dateStr);
+      url.searchParams.set("centerUtc", centerUtc);
+      location.href = url.toString();
+    });
+
+    btnOpenHorizon.addEventListener("click", () => {
+      const url = new URL("visor.html", location.href);
+      url.searchParams.set("lat", lat.toFixed(6));
+      url.searchParams.set("lon", lon.toFixed(6));
+      url.searchParams.set("alt", String(Math.round(alt)));
+      url.searchParams.set("rangeKm", String(Math.round(rangeKm)));
+      url.searchParams.set("date", dateStr);
+      url.searchParams.set("centerUtc", centerUtc);
+      location.href = url.toString();
+    });
+
+    updateLocationCard();
+
+    if(Number.isFinite(lat) && Number.isFinite(lon)){
+      refreshEclipseSummary(lat, lon, Number.isFinite(alt) ? alt : 0);
+    } else {
+      eclipseCard.style.display = "none";
+    }
+
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
         navigator.serviceWorker.register("./service-worker.js").catch(()=>{});
