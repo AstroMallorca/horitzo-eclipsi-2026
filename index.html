@@ -955,6 +955,16 @@ if (!btnMap || !mapModal || !mapOk || !mapCancel || !mapClose || !mapInfo) {
     altEl.value = String(Math.round(picked.alt ?? 0));
 chosen = "manual";
 manualBox.style.display = "block";
+
+saveLastLocation({
+  lat: picked.lat,
+  lon: picked.lon,
+  alt: picked.alt ?? 0,
+  rangeKm: parseNum(rangeEl.value) ?? 200,
+  date: (dateEl.value || "2026-08-12").trim(),
+  centerUtc: (centerUtcEl.value || "18:30").trim()
+});
+
 setStatus("Localització del mapa aplicada. Dades manuals OK.", true);
 enableGoIfReady();
 closeMapModal();
@@ -973,7 +983,84 @@ closeMapModal();
     const x = parseFloat(String(v).replace(",", "."));
     return Number.isFinite(x) ? x : null;
   }
+  const LAST_LOCATION_KEY = "horitzo2026:lastLocation";
 
+  function saveLastLocation(data){
+    try{
+      localStorage.setItem(LAST_LOCATION_KEY, JSON.stringify(data));
+    }catch(err){
+      console.warn("No s'ha pogut guardar la darrera localització", err);
+    }
+  }
+
+  function loadLastLocation(){
+    try{
+      const raw = localStorage.getItem(LAST_LOCATION_KEY);
+      if(!raw) return null;
+      return JSON.parse(raw);
+    }catch(err){
+      console.warn("No s'ha pogut llegir la darrera localització", err);
+      return null;
+    }
+  }
+
+  function applyLocationToForm(data){
+    if(!data) return false;
+
+    if(Number.isFinite(data.lat)) latEl.value = data.lat.toFixed(6);
+    if(Number.isFinite(data.lon)) lonEl.value = data.lon.toFixed(6);
+    if(Number.isFinite(data.alt)) altEl.value = String(Math.round(data.alt));
+    if(Number.isFinite(data.rangeKm)) rangeEl.value = String(Math.round(data.rangeKm));
+    if(typeof data.date === "string" && data.date) dateEl.value = data.date;
+    if(typeof data.centerUtc === "string" && data.centerUtc) centerUtcEl.value = data.centerUtc;
+
+    chosen = "manual";
+    manualBox.style.display = "block";
+
+    const v = validateManual();
+    if(v.ok){
+      setStatus("Darrera localització recuperada.", true);
+      enableGoIfReady();
+    }
+
+    return true;
+  }
+
+  function getLocationFromUrl(){
+    const p = new URLSearchParams(location.search);
+
+    const lat = parseNum(p.get("lat"));
+    const lon = parseNum(p.get("lon"));
+    const alt = parseNum(p.get("alt"));
+    const rangeKm = parseNum(p.get("rangeKm"));
+    const date = (p.get("date") || "").trim();
+    const centerUtc = (p.get("centerUtc") || "").trim();
+
+    if(lat == null || lon == null) return null;
+
+    return {
+      lat,
+      lon,
+      alt: alt == null ? 0 : alt,
+      rangeKm: rangeKm == null ? 200 : rangeKm,
+      date: date || "2026-08-12",
+      centerUtc: centerUtc || "18:30"
+    };
+  }
+
+  function restoreInitialLocation(){
+    const fromUrl = getLocationFromUrl();
+    if(fromUrl){
+      applyLocationToForm(fromUrl);
+      saveLastLocation(fromUrl);
+      return;
+    }
+
+    const last = loadLastLocation();
+    if(last){
+      applyLocationToForm(last);
+    }
+  }
   function validateManual(){
     const lat = parseNum(latEl.value);
     const lon = parseNum(lonEl.value);
@@ -1115,7 +1202,16 @@ function initMapIfNeeded(){
         current.lon = pos.coords.longitude;
         current.alt = (pos.coords.altitude == null) ? 0 : pos.coords.altitude;
 
-        setStatus(`Ubicació OK: ${current.lat.toFixed(5)}, ${current.lon.toFixed(5)} (alt ${Math.round(current.alt)} m)`, true);
+        saveLastLocation({
+  lat: current.lat,
+  lon: current.lon,
+  alt: current.alt ?? 0,
+  rangeKm: parseNum(rangeEl.value) ?? 200,
+  date: (dateEl.value || "2026-08-12").trim(),
+  centerUtc: (centerUtcEl.value || "18:30").trim()
+});
+
+setStatus(`Ubicació OK: ${current.lat.toFixed(5)}, ${current.lon.toFixed(5)} (alt ${Math.round(current.alt)} m)`, true);
 enableGoIfReady();
       },
       err => {
@@ -1133,7 +1229,14 @@ enableGoIfReady();
       const v = validateManual();
       if(v.ok){
         setStatus("Dades manuals OK.", true);
-
+        saveLastLocation({
+          lat: v.lat,
+          lon: v.lon,
+          alt: v.alt,
+          rangeKm: v.rangeKm,
+          date: (dateEl.value || "2026-08-12").trim(),
+          centerUtc: (centerUtcEl.value || "18:30").trim()
+        });
       } else {
         setStatus("Introdueix lat/lon vàlids.", false);
       }
@@ -1165,6 +1268,7 @@ enableGoIfReady();
 
     location.href = url.toString();
   });
+    restoreInitialLocation();
 </script>
 
 <script>
