@@ -961,36 +961,30 @@ if (!btnMap || !mapModal || !mapOk || !mapCancel || !mapClose || !mapInfo) {
   mapModal.addEventListener("click", (e) => {
     if(e.target === mapModal) closeMapModal();
   });
-
   mapOk.addEventListener("click", () => {
     if(picked.lat == null || picked.lon == null) return;
+
     latEl.value = picked.lat.toFixed(6);
     lonEl.value = picked.lon.toFixed(6);
     altEl.value = String(Math.round(picked.alt ?? 0));
-chosen = "manual";
-manualBox.style.display = "none";
 
-saveLastLocation({
-  lat: picked.lat,
-  lon: picked.lon,
-  alt: picked.alt ?? 0,
-  rangeKm: parseNum(rangeEl.value) ?? 200,
-  date: (dateEl.value || "2026-08-12").trim(),
-  centerUtc: (centerUtcEl.value || "18:30").trim()
-});
+    chosen = "manual";
+    manualBox.style.display = "none";
 
-showSelectedLocation(picked.lat, picked.lon, picked.alt ?? 0);
+    saveLastLocation({
+      lat: picked.lat,
+      lon: picked.lon,
+      alt: picked.alt ?? 0,
+      rangeKm: parseNum(rangeEl.value) ?? 200,
+      date: (dateEl.value || "2026-08-12").trim(),
+      centerUtc: (centerUtcEl.value || "18:30").trim()
+    });
 
-clearStatus();
-enableGoIfReady();
-closeMapModal();
-
-showSelectedLocation(picked.lat, picked.lon, picked.alt ?? 0);
-
-enableGoIfReady();
-closeMapModal();
+    showSelectedLocation(picked.lat, picked.lon, picked.alt ?? 0);
+    clearStatus();
+    enableGoIfReady();
+    closeMapModal();
   });
-}
   let chosen = null; // "gps" | "manual"
   let current = {lat:null, lon:null, alt:null};
 
@@ -1245,6 +1239,7 @@ function initMapIfNeeded(){
   btnGPS.addEventListener("click", () => {
     chosen = "gps";
     manualBox.style.display = "none";
+    hideSelectedLocation();
     statusEl.className = "hint";
     statusEl.textContent = "Cercant ubicació…";
 
