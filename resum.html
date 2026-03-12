@@ -1010,7 +1010,16 @@ function fmtMallorcaDateFromDate(d){
 
       return "Eclipsi solar";
     }
+async function waitForHorizonEngine(maxWaitMs = 4000){
+  const t0 = performance.now();
 
+  while(performance.now() - t0 < maxWaitMs){
+    if(window.__INDEX_HORIZON_ENGINE__) return window.__INDEX_HORIZON_ENGINE__;
+    await new Promise(r => setTimeout(r, 40));
+  }
+
+  return null;
+}
     function profileAltAtAz(profile, azDeg){
       if(!profile || !profile.alt || !Number.isFinite(profile.az0) || !Number.isFinite(profile.daz)) return NaN;
 
@@ -1033,9 +1042,9 @@ function fmtMallorcaDateFromDate(d){
       return v0 + (v1 - v0) * t;
     }
 
-    async function computeObstacleSunset(lat, lon, alt, seaSetTime){
-      const engine = window.__INDEX_HORIZON_ENGINE__;
-      if (!engine || !seaSetTime) return null;
+ async function computeObstacleSunset(lat, lon, alt, seaSetTime){
+  const engine = await waitForHorizonEngine();
+  if (!engine || !seaSetTime) return null;
 
       const obs = new Astronomy.Observer(lat, lon, alt);
       const seaHor = sunHorAtTimeForIndex(seaSetTime, obs);
