@@ -122,7 +122,49 @@ const PARAMS = {
   date: getParam("date", "2026-08-12"),
   centerUtc: getParam("centerUtc", "18:30")
 };
+const VISOR_PROFILE_CACHE_PREFIX = "horitzo2026:visorProfile:";
 
+function makeVisorProfileCacheKey(lat, lon, alt, rangeKm, dateStr, centerUtc){
+  return VISOR_PROFILE_CACHE_PREFIX + [
+    lat.toFixed(6),
+    lon.toFixed(6),
+    Math.round(alt),
+    Math.round(rangeKm),
+    dateStr,
+    centerUtc
+  ].join("|");
+}
+
+function loadVisorProfileFromCache(){
+  try{
+    const key = makeVisorProfileCacheKey(
+      PARAMS.lat,
+      PARAMS.lon,
+      PARAMS.alt,
+      PARAMS.rangeKm,
+      PARAMS.date,
+      PARAMS.centerUtc
+    );
+
+    const raw = sessionStorage.getItem(key);
+    if(!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    if(
+      !parsed ||
+      !Number.isFinite(parsed.az0) ||
+      !Number.isFinite(parsed.daz) ||
+      !Array.isArray(parsed.alt)
+    ){
+      return null;
+    }
+
+    return parsed;
+  }catch(err){
+    console.warn("No s'ha pogut llegir la precàrrega del visor", err);
+    return null;
+  }
+}
 document.getElementById("meta").textContent =
   `lat ${PARAMS.lat.toFixed(4)}, lon ${PARAMS.lon.toFixed(4)}, alt ${Math.round(PARAMS.alt)} m · ${PARAMS.date} ${PARAMS.centerUtc} UTC · rang ${Math.round(PARAMS.rangeKm)} km`;
 
@@ -767,7 +809,24 @@ window.addEventListener("resize", () => {
     window.__SUNPTS__ = sunPts;
     window.__SUNCENTER__ = sunAtCenter;
     window.__MARKS__ = marks;
+const cachedProfile = loadVisorProfileFromCache();
+if(cachedProfile){
+  CURRENT_PROFILE = {
+    az0: cachedProfile.az0,
+    daz: cachedProfile.daz,
+    alt: cachedProfile.alt
+  };
 
+  CURRENT_PROFILE_DISPLAY = {
+    az0: cachedProfile.az0,
+    daz: cachedProfile.daz,
+    alt: Array.isArray(cachedProfile.altDisplay) ? cachedProfile.altDisplay : cachedProfile.alt
+  };
+
+  hud.textContent = "Horitzó precarregat";
+  render(sunPts, sunAtCenter, marks);
+  return;
+}
     hud.textContent = "Calculant horitzó online…";
 
     const fallbackMin = 260.0;
