@@ -985,9 +985,8 @@ clearStatus();
 enableGoIfReady();
 closeMapModal();
 
-showSelectedLocation(current.lat, current.lon, current.alt ?? 0);
+showSelectedLocation(picked.lat, picked.lon, picked.alt ?? 0);
 
-setStatus(`Ubicació OK: ${current.lat.toFixed(5)}, ${current.lon.toFixed(5)} (alt ${Math.round(current.alt)} m)`, true);
 enableGoIfReady();
 closeMapModal();
   });
