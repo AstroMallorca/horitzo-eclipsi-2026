@@ -971,13 +971,19 @@ chosen = "manual";
 manualBox.style.display = "none";
 
 saveLastLocation({
-  lat: current.lat,
-  lon: current.lon,
-  alt: current.alt ?? 0,
+  lat: picked.lat,
+  lon: picked.lon,
+  alt: picked.alt ?? 0,
   rangeKm: parseNum(rangeEl.value) ?? 200,
   date: (dateEl.value || "2026-08-12").trim(),
   centerUtc: (centerUtcEl.value || "18:30").trim()
 });
+
+showSelectedLocation(picked.lat, picked.lon, picked.alt ?? 0);
+
+clearStatus();
+enableGoIfReady();
+closeMapModal();
 
 showSelectedLocation(current.lat, current.lon, current.alt ?? 0);
 
@@ -992,6 +998,11 @@ closeMapModal();
   function setStatus(msg, ok){
     statusEl.textContent = msg;
     statusEl.className = "hint " + (ok ? "ok" : "bad");
+  }
+
+  function clearStatus(){
+    statusEl.textContent = "";
+    statusEl.className = "hint";
   }
 
   function parseNum(v){
@@ -1058,9 +1069,9 @@ closeMapModal();
       Number.isFinite(data.alt) ? data.alt : 0
     );
 
-    const v = validateManual();
+       const v = validateManual();
     if(v.ok){
-      setStatus("Darrera localització recuperada.", true);
+      clearStatus();
       enableGoIfReady();
     }
 
@@ -1228,7 +1239,7 @@ function initMapIfNeeded(){
     chosen = "manual";
     manualBox.style.display = "block";
     hideSelectedLocation();
-    setStatus("Mode manual: introdueix coordenades.", true);
+    clearStatus();
     enableGoIfReady();
   });
 
@@ -1245,16 +1256,17 @@ function initMapIfNeeded(){
         current.alt = (pos.coords.altitude == null) ? 0 : pos.coords.altitude;
 
         saveLastLocation({
-  lat: current.lat,
-  lon: current.lon,
-  alt: current.alt ?? 0,
-  rangeKm: parseNum(rangeEl.value) ?? 200,
-  date: (dateEl.value || "2026-08-12").trim(),
-  centerUtc: (centerUtcEl.value || "18:30").trim()
-});
+          lat: current.lat,
+          lon: current.lon,
+          alt: current.alt ?? 0,
+          rangeKm: parseNum(rangeEl.value) ?? 200,
+          date: (dateEl.value || "2026-08-12").trim(),
+          centerUtc: (centerUtcEl.value || "18:30").trim()
+        });
 
-setStatus(`Ubicació OK: ${current.lat.toFixed(5)}, ${current.lon.toFixed(5)} (alt ${Math.round(current.alt)} m)`, true);
-enableGoIfReady();
+        showSelectedLocation(current.lat, current.lon, current.alt ?? 0);
+        clearStatus();
+        enableGoIfReady();
       },
       err => {
         setStatus("No s'ha pogut obtenir la ubicació. Usa el mode manual.", false);
@@ -1271,8 +1283,8 @@ enableGoIfReady();
       hideSelectedLocation();
 
       const v = validateManual();
-      if(v.ok){
-        setStatus("Dades manuals OK.", true);
+           if(v.ok){
+        clearStatus();
 
         saveLastLocation({
           lat: v.lat,
