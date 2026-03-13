@@ -1123,16 +1123,6 @@ function smoothProfileForDisplay(arr, windowSize = 5){
 
   return out;
 }
-    async function waitForHorizonEngine(maxWaitMs = 4000){
-  const t0 = performance.now();
-
-  while(performance.now() - t0 < maxWaitMs){
-    if(window.__INDEX_HORIZON_ENGINE__) return window.__INDEX_HORIZON_ENGINE__;
-    await new Promise(r => setTimeout(r, 40));
-  }
-
-  return null;
-}
     function profileAltAtAz(profile, azDeg){
       if(!profile || !profile.alt || !Number.isFinite(profile.az0) || !Number.isFinite(profile.daz)) return NaN;
 
