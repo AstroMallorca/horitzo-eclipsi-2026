@@ -77,66 +77,48 @@
 
 .hero{
   display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:10px;
+  justify-content:center;
   margin-bottom:18px;
 }
 
 .heroTop{
   display:flex;
   align-items:center;
-  gap:10px;
+  gap:14px;
 }
 
 .heroLogo{
-  width:38px;
-  height:38px;
+  width:56px;
+  height:56px;
   object-fit:contain;
+  flex:0 0 auto;
   filter: drop-shadow(0 0 10px rgba(125,211,252,.45));
 }
 
-  .eyebrow{
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
-    padding:7px 12px;
-    margin-bottom:12px;
-    border-radius:999px;
-    border:1px solid var(--border);
-    background:rgba(255,255,255,.04);
-    color:var(--muted);
-    font-size:12px;
-    letter-spacing:.08em;
-    text-transform:uppercase;
-    backdrop-filter:blur(8px);
-  }
+.heroText{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:2px;
+}
 
-  .eyebrow::before{
-    content:"";
-    width:8px;
-    height:8px;
-    border-radius:50%;
-    background:linear-gradient(180deg,var(--accent),var(--accent-2));
-    box-shadow:0 0 14px rgba(125,211,252,.55);
-  }
+.title{
+  font-size:clamp(28px,4.8vw,40px);
+  line-height:1;
+  font-weight:800;
+  letter-spacing:-.03em;
+  margin:0;
+  text-wrap:balance;
+}
 
-  .title{
-    font-size:clamp(28px,4.8vw,40px);
-    line-height:1.05;
-    font-weight:800;
-    letter-spacing:-.03em;
-    margin:0 0 10px;
-    text-wrap:balance;
-  }
-
-  .sub{
-    color:var(--muted);
-    margin:0 auto;
-    line-height:1.5;
-    max-width:60ch;
-    font-size:15.5px;
-  }
+.eyebrow{
+  color:var(--muted);
+  font-size:clamp(18px,3.3vw,28px);
+  line-height:1;
+  font-weight:800;
+  letter-spacing:-.02em;
+  margin:0;
+}
 
   .card{
     background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02));
@@ -835,15 +817,15 @@
 <body>
 <div class="wrap">
 <div class="hero">
-
   <div class="heroTop">
     <img src="assets/icons/icon-512.png" class="heroLogo" alt="Logo Horitzó Eclipsi 2026">
-    <div class="eyebrow">AstroMallorca · Eclipsi total 2026</div>
-  </div>
 
-  <div class="title">Horitzó Eclipsi 2026</div>
-    <p class="sub">Comprova si la totalitat de l’eclipsi solar del 12 d’agost de 2026 serà visible des d’un punt concret de Mallorca, especialment quan el Sol és molt baix sobre l’horitzó.</p>
+    <div class="heroText">
+      <div class="title">Horitzó Eclipsi 2026</div>
+      <div class="eyebrow">AstroMallorca · Eclipsi Total del 2026</div>
+    </div>
   </div>
+</div>
   
   <div class="card">
     <div class="sectionTitle">Selecciona una localització</div>
