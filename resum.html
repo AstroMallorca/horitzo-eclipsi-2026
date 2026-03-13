@@ -954,10 +954,26 @@ function eclipseMomentCardHtml(code, title, timeAstro, hor, imagePath, desc, tra
         <div class="momentInfo">
           <div class="momentTitle">${title}</div>
 
-          <div class="momentMeta">
-            ${metaTxt}
-          </div>
+function eclipseMomentCardHtml(code, title, timeAstro, hor, imagePath, desc, transform = "none"){
+  const isSetCard = code === "SET";
+  const visible = isSetCard ? true : isMomentVisible(hor);
 
+  const timeTxt = fmtLocalTimeAstroSec(timeAstro);
+  const altTxt = hor && Number.isFinite(hor.alt) ? `${hor.alt.toFixed(1)}°` : "—";
+  const azTxt  = hor && Number.isFinite(hor.az)  ? `${hor.az.toFixed(1)}°`  : "—";
+
+  return `
+    <div class="momentCard" style="--moment-image:url('${imagePath}'); --moment-transform:${transform};">
+      <div class="momentInner">
+        <div class="momentCode">${code}</div>
+
+        <div class="momentInfo">
+          <div class="momentTitle">${title}</div>
+          <div class="momentTime">${visible ? timeTxt : "NO VISIBLE"}</div>
+          <div class="momentAltAz">
+            <span>ALT ${altTxt}</span>
+            <span>AZ ${azTxt}</span>
+          </div>
           <div class="momentDesc">${desc}</div>
         </div>
       </div>
@@ -1048,11 +1064,15 @@ function buildOrderedMomentCards(info, hasCentral){
     )
   });
 
-  return items
-    .filter(item => item.time instanceof Date && !isNaN(item.time))
-    .sort((a, b) => a.time - b.time)
-    .map(item => item.html)
-    .join("");
+return items
+  .map(item => ({
+    ...item,
+    sortDate: astroToDate(item.time)
+  }))
+  .filter(item => item.sortDate instanceof Date && !isNaN(item.sortDate))
+  .sort((a, b) => a.sortDate - b.sortDate)
+  .map(item => item.html)
+  .join("");
 }
     function separationFromObscurationFraction(p){
       if(!Number.isFinite(p)) return 2;
