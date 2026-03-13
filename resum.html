@@ -265,14 +265,15 @@ window.__INDEX_HORIZON_ENGINE__ = new HorizonEngine({
       border-top:0;
     }
 
-    .summaryBlockTitle{
-      font-size:13px;
-      font-weight:700;
-      text-transform:uppercase;
-      letter-spacing:.08em;
-      color:var(--accent);
-      margin:0 0 10px;
-    }
+.summaryBlockTitle{
+  font-size:13px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  color:var(--accent);
+  margin:0 0 12px;
+  text-align:center;
+}
 
     .summaryList{
       display:grid;
@@ -338,7 +339,87 @@ window.__INDEX_HORIZON_ENGINE__ = new HorizonEngine({
       background:rgba(255,255,255,.08);
       border-color:var(--border-strong);
     }
+.infoPanel{
+  background:rgba(255,255,255,.035);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:12px 14px;
+}
 
+.infoPanel + .infoPanel{
+  margin-top:10px;
+}
+
+.infoPanelRow{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:14px;
+  padding:8px 0;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+
+.infoPanelRow:last-child{
+  border-bottom:0;
+  padding-bottom:0;
+}
+
+.infoPanelRow:first-child{
+  padding-top:0;
+}
+
+.infoPanelLabel{
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+
+.infoPanelValue{
+  text-align:right;
+  color:var(--text);
+  font-size:15px;
+  font-weight:800;
+  line-height:1.3;
+}
+
+.simChoice{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.simChoiceTop{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+}
+
+.simChoiceDate{
+  font-size:13px;
+  font-weight:800;
+  color:#fff;
+}
+
+.simChoiceData{
+  color:var(--muted);
+  font-size:12.5px;
+  line-height:1.35;
+}
+
+@media (max-width:640px){
+  .infoPanelRow,
+  .simChoiceTop{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+
+  .infoPanelValue{
+    text-align:left;
+  }
+}
     .momentGrid{
       display:grid;
       gap:12px;
@@ -377,70 +458,75 @@ window.__INDEX_HORIZON_ENGINE__ = new HorizonEngine({
         linear-gradient(180deg, rgba(7,10,20,.18) 0%, rgba(7,10,20,.36) 100%);
       z-index:1;
     }
+.momentInner{
+  position:relative;
+  z-index:2;
+  min-height:158px;
+  display:grid;
+  grid-template-columns:118px 1fr;
+  gap:14px;
+  align-items:center;
+  padding:14px 16px;
+}
 
-    .momentInner{
-      position:relative;
-      z-index:2;
-      min-height:148px;
-      display:grid;
-      grid-template-columns:118px 1fr;
-      gap:14px;
-      align-items:center;
-      padding:14px 16px;
-    }
+.momentCode{
+  font-size:88px;
+  line-height:.9;
+  font-weight:900;
+  letter-spacing:-.06em;
+  color:rgba(150,150,150,.9);
+  text-shadow:0 2px 2px rgba(255,255,255,.05);
+  user-select:none;
+}
 
-    .momentCode{
-      font-size:88px;
-      line-height:.9;
-      font-weight:900;
-      letter-spacing:-.06em;
-      color:rgba(150,150,150,.9);
-      text-shadow:0 2px 2px rgba(255,255,255,.05);
-      user-select:none;
-    }
+.momentInfo{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
 
-    .momentInfo{
-      min-width:0;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      text-align:center;
-    }
+.momentTitle{
+  font-size:18px;
+  font-weight:900;
+  line-height:1.02;
+  color:#fff;
+  margin:0 0 4px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  text-wrap:balance;
+}
 
-    .momentTitle{
-      font-size:21px;
-      font-weight:800;
-      line-height:1.05;
-      color:#fff;
-      margin:0 0 8px;
-      text-wrap:balance;
-    }
+.momentTime{
+  font-size:34px;
+  font-weight:900;
+  line-height:1;
+  color:#fff;
+  margin:0 0 5px;
+  letter-spacing:-.03em;
+}
 
-    .momentMeta{
-      display:flex;
-      flex-wrap:wrap;
-      justify-content:center;
-      gap:10px;
-      font-size:16px;
-      font-weight:800;
-      color:#fff;
-      line-height:1.2;
-    }
+.momentAltAz{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:12px;
+  font-size:14px;
+  font-weight:800;
+  color:#fff;
+  line-height:1.2;
+}
 
-    .momentMeta .dot{
-      opacity:.68;
-      font-weight:700;
-    }
-
-    .momentDesc{
-      margin-top:8px;
-      font-size:13px;
-      line-height:1.35;
-      color:rgba(255,255,255,.92);
-      max-width:34ch;
-      text-wrap:balance;
-    }
+.momentDesc{
+  margin-top:6px;
+  font-size:12.5px;
+  line-height:1.28;
+  color:rgba(255,255,255,.92);
+  max-width:34ch;
+  text-wrap:balance;
+}
 
     .partialOnlyCard{
       position:relative;
@@ -555,37 +641,43 @@ window.__INDEX_HORIZON_ENGINE__ = new HorizonEngine({
     }
 
     @media (max-width:640px){
-      .momentCard,
-      .partialOnlyCard{
-        min-height:132px;
-        border-radius:16px;
-      }
+.momentCard,
+.partialOnlyCard{
+  min-height:148px;
+  border-radius:16px;
+}
 
-      .momentInner{
-        min-height:132px;
-        grid-template-columns:82px 1fr;
-        gap:10px;
-        padding:12px;
-      }
+.momentInner{
+  min-height:148px;
+  grid-template-columns:82px 1fr;
+  gap:10px;
+  padding:12px;
+}
 
-      .momentCode{
-        font-size:64px;
-      }
+.momentCode{
+  font-size:64px;
+}
 
-      .momentTitle{
-        font-size:17px;
-        margin-bottom:6px;
-      }
+.momentTitle{
+  font-size:14px;
+  margin-bottom:4px;
+}
 
-      .momentMeta{
-        gap:7px;
-        font-size:14px;
-      }
+.momentTime{
+  font-size:26px;
+  margin-bottom:4px;
+}
 
-      .momentDesc{
-        font-size:12.5px;
-        margin-top:6px;
-      }
+.momentAltAz{
+  gap:8px;
+  font-size:12.5px;
+}
+
+.momentDesc{
+  font-size:11.5px;
+  margin-top:5px;
+  line-height:1.22;
+}
 
       .partialOnlyCard{
         min-height:132px;
@@ -711,11 +803,9 @@ window.__INDEX_HORIZON_ENGINE__ = new HorizonEngine({
       </div>
     </div>
 
-    <div class="card" id="eclipseCard" style="display:none;">
-      <div class="sectionTitle">Resum de l’eclipsi al punt seleccionat</div>
-      <div id="eclipseInfo" class="hint">—</div>
-    </div>
-  </div>
+<div class="card" id="eclipseCard" style="display:none;">
+  <div id="eclipseInfo" class="hint">—</div>
+</div>
 
   <script>
     const eclipseCard = document.getElementById("eclipseCard");
@@ -835,43 +925,30 @@ function fmtMallorcaDateFromDate(d){
       return !!(hor && Number.isFinite(hor.alt) && hor.alt > 0);
     }
 
-    function eclipseMomentCardHtml(code, title, timeAstro, hor, imagePath, desc, transform = "none"){
-      const visible = isMomentVisible(hor);
-      const timeTxt = fmtLocalTimeAstroSec(timeAstro);
-      const altTxt = hor && Number.isFinite(hor.alt) ? `${hor.alt.toFixed(1)}°` : "—";
-      const azTxt  = hor && Number.isFinite(hor.az)  ? `${hor.az.toFixed(1)}°`  : "—";
+function eclipseMomentCardHtml(code, title, timeAstro, hor, imagePath, desc, transform = "none"){
+  const visible = isMomentVisible(hor);
+  const timeTxt = fmtLocalTimeAstroSec(timeAstro);
+  const altTxt = hor && Number.isFinite(hor.alt) ? `${hor.alt.toFixed(1)}°` : "—";
+  const azTxt  = hor && Number.isFinite(hor.az)  ? `${hor.az.toFixed(1)}°`  : "—";
 
-      const metaTxt = visible
-        ? `
-          <span>${timeTxt}</span>
-          <span class="dot">•</span>
-          <span>alt ${altTxt}</span>
-          <span class="dot">•</span>
-          <span>az ${azTxt}</span>
-        `
-        : `
-          <span>No visible des d’aquest punt</span>
-          ${hor && Number.isFinite(hor.alt) ? `<span class="dot">•</span><span>alt ${altTxt}</span>` : ``}
-        `;
+  return `
+    <div class="momentCard" style="--moment-image:url('${imagePath}'); --moment-transform:${transform};">
+      <div class="momentInner">
+        <div class="momentCode">${code}</div>
 
-      return `
-        <div class="momentCard" style="--moment-image:url('${imagePath}'); --moment-transform:${transform};">
-          <div class="momentInner">
-            <div class="momentCode">${code}</div>
-
-            <div class="momentInfo">
-              <div class="momentTitle">${title}</div>
-
-              <div class="momentMeta">
-                ${metaTxt}
-              </div>
-
-              <div class="momentDesc">${desc}</div>
-            </div>
+        <div class="momentInfo">
+          <div class="momentTitle">${title}</div>
+          <div class="momentTime">${visible ? timeTxt : "NO VISIBLE"}</div>
+          <div class="momentAltAz">
+            <span>ALT ${altTxt}</span>
+            <span>AZ ${azTxt}</span>
           </div>
+          <div class="momentDesc">${desc}</div>
         </div>
-      `;
-    }
+      </div>
+    </div>
+  `;
+}
 
     function separationFromObscurationFraction(p){
       if(!Number.isFinite(p)) return 2;
@@ -1434,7 +1511,14 @@ setHorizonButtonReady();
               "assets/Moments/C1C4.png",
               "La Lluna comença a entrar davant el Sol i s’inicia la fase parcial."
             )}
-
+${eclipseMomentCardHtml(
+  "SET",
+  "POSTA DE SOL",
+  info.sunset,
+  info.hSet,
+  "assets/Moments/MAX.png",
+  "Moment en què el Sol es pon a l’horitzó astronòmic des d’aquest punt."
+)}
             ${
               hasCentral
                 ? eclipseMomentCardHtml(
@@ -1507,48 +1591,64 @@ setHorizonButtonReady();
             <div class="summaryMetricSub">Azimut ${azMax}</div>
           </div>
         </div>
+<div class="summaryBlock">
+  <div class="summaryBlockTitle">Posta de sol</div>
 
-        <div class="summaryBlock">
-          <div class="summaryBlockTitle">Posta de sol</div>
-          <div class="summaryList">
-            <div class="summaryRow">
-              <div class="summaryRowLabel">Posta astronòmica</div>
-              <div class="summaryRowValue">
-                ${fmtLocalTimeAstroSec(info.sunset)}${info.hSet ? ` · alt ${info.hSet.alt.toFixed(1)}° · az ${info.hSet.az.toFixed(1)}°` : ""}
-              </div>
-            </div>
+  <div class="infoPanel">
+    <div class="infoPanelRow">
+      <div class="infoPanelLabel">Posta astronòmica</div>
+      <div class="infoPanelValue">
+        ${fmtLocalTimeAstroSec(info.sunset)}${info.hSet ? `<br>ALT ${info.hSet.alt.toFixed(1)}° · AZ ${info.hSet.az.toFixed(1)}°` : ""}
+      </div>
+    </div>
 
-            <div class="summaryRow">
-              <div class="summaryRowLabel">Posta local</div>
-              <div class="summaryRowValue">${obstacleTxt}</div>
-            </div>
-          </div>
-        </div>
+    <div class="infoPanelRow">
+      <div class="infoPanelLabel">Posta local</div>
+      <div class="infoPanelValue">${obstacleTxt}</div>
+    </div>
+  </div>
+</div>
 
-        <div class="summaryBlock">
-          <div class="summaryBlockTitle">Simulació solar · hora local</div>
+<div class="summaryBlock">
+  <div class="summaryBlockTitle">Simulació solar · hora local</div>
 
-          <div class="summarySimLine">
-            <b>Millor coincidència:</b>
-            <span>${simBest?.date ? `${fmtMallorcaHmsFromDate(simBest.date)} · ${simBest.date.toISOString().slice(0,10)}` : "No disponible"}</span>
-          </div>
+  <div class="infoPanel">
+    <div class="infoPanelRow">
+      <div class="infoPanelLabel">Millor coincidència</div>
+      <div class="infoPanelValue">
+        ${simBest?.date ? `${fmtMallorcaHmsFromDate(simBest.date)}<br>${simBest.date.toISOString().slice(0,10)}` : "No disponible"}
+      </div>
+    </div>
+  </div>
 
-          <div class="summarySimLine">
-            <b>29/04/2026:</b>
-            <span>${sim29?.date ? `${fmtMallorcaHmsFromDate(sim29.date)} · Δalt ${sim29.dAlt >= 0 ? "+" : ""}${sim29.dAlt.toFixed(2)}° · Δaz ${sim29.dAz.toFixed(2)}°` : "No disponible"}</span>
-            ${sim29?.date ? `<button type="button" onclick="applySimulationDate('${sim29Date}','${sim29Hm}')" class="miniBtn">Usar</button>` : ``}
-          </div>
+  <div class="infoPanel">
+    <div class="simChoice">
+      <div class="simChoiceTop">
+        <div class="simChoiceDate">29/04/2026</div>
+        ${sim29?.date ? `<button type="button" onclick="applySimulationDate('${sim29Date}','${sim29Hm}')" class="miniBtn">Usar</button>` : ``}
+      </div>
+      <div class="simChoiceData">
+        ${sim29?.date ? `${fmtMallorcaHmsFromDate(sim29.date)} · Δalt ${sim29.dAlt >= 0 ? "+" : ""}${sim29.dAlt.toFixed(2)}° · Δaz ${sim29.dAz.toFixed(2)}°` : "No disponible"}
+      </div>
+    </div>
+  </div>
 
-          <div class="summarySimLine">
-            <b>30/04/2026:</b>
-            <span>${sim30?.date ? `${fmtMallorcaHmsFromDate(sim30.date)} · Δalt ${sim30.dAlt >= 0 ? "+" : ""}${sim30.dAlt.toFixed(2)}° · Δaz ${sim30.dAz.toFixed(2)}°` : "No disponible"}</span>
-            ${sim30?.date ? `<button type="button" onclick="applySimulationDate('${sim30Date}','${sim30Hm}')" class="miniBtn">Usar</button>` : ``}
-          </div>
+  <div class="infoPanel">
+    <div class="simChoice">
+      <div class="simChoiceTop">
+        <div class="simChoiceDate">30/04/2026</div>
+        ${sim30?.date ? `<button type="button" onclick="applySimulationDate('${sim30Date}','${sim30Hm}')" class="miniBtn">Usar</button>` : ``}
+      </div>
+      <div class="simChoiceData">
+        ${sim30?.date ? `${fmtMallorcaHmsFromDate(sim30.date)} · Δalt ${sim30.dAlt >= 0 ? "+" : ""}${sim30.dAlt.toFixed(2)}° · Δaz ${sim30.dAz.toFixed(2)}°` : "No disponible"}
+      </div>
+    </div>
+  </div>
 
-          <div class="summaryNote">
-            La simulació cerca, per al 29 i 30 d’abril, l’instant en què el Sol s’assembla més a la posició que tindrà al màxim de l’eclipsi.
-          </div>
-        </div>
+  <div class="summaryNote">
+    La simulació cerca, per al 29 i 30 d’abril, l’instant en què el Sol s’assembla més a la posició que tindrà al màxim de l’eclipsi.
+  </div>
+</div>
       `;
     }
 
