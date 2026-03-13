@@ -530,8 +530,7 @@ window.__INDEX_HORIZON_ENGINE__ = new HorizonEngine({
 
     .partialOnlyCard{
       position:relative;
-      min-height:148px;
-      height:148px;
+      min-height:158px;
       border-radius:18px;
       overflow:hidden;
       border:1px solid rgba(255,255,255,.10);
@@ -545,113 +544,117 @@ window.__INDEX_HORIZON_ENGINE__ = new HorizonEngine({
       position:absolute;
       inset:0;
       background:
-        linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0)),
-        linear-gradient(90deg, rgba(0,0,0,.14), rgba(0,0,0,.04) 35%, rgba(0,0,0,.14));
-      z-index:0;
+        linear-gradient(90deg, rgba(0,0,0,.34) 0%, rgba(0,0,0,.12) 38%, rgba(0,0,0,.34) 100%),
+        linear-gradient(180deg, rgba(7,10,20,.10) 0%, rgba(7,10,20,.24) 100%);
+      z-index:1;
       pointer-events:none;
     }
 
     .partialOnlyInner{
       position:relative;
       z-index:2;
-      height:100%;
-      display:flex;
-      flex-direction:column;
-      justify-content:center;
+      min-height:158px;
+      display:grid;
+      grid-template-columns:118px 1fr;
+      gap:14px;
       align-items:center;
-      text-align:center;
-      padding:10px 16px 12px;
+      padding:14px 16px;
     }
 
-.partialOnlySky{
-  position:relative;
-  width:100%;
-  height:70px;
-  margin-bottom:4px;
-  pointer-events:none;
-}
+    .partialOnlySky{
+      position:absolute;
+      inset:0;
+      overflow:hidden;
+      pointer-events:none;
+      z-index:0;
+    }
 
-.partialDiscSun,
-.partialDiscMoon{
-  position:absolute;
-  top:50%;
-  width:138px;
-  height:138px;
-  border-radius:50%;
-  transform:translate(-50%, -50%);
-}
+    .partialDiscSun,
+    .partialDiscMoon{
+      position:absolute;
+      top:50%;
+      width:220px;
+      height:220px;
+      border-radius:50%;
+      transform:translate(-50%, -50%);
+    }
 
     .partialDiscSun{
-      left:calc(var(--partial-sun-x, 38) * 1%);
+      left:calc(var(--partial-sun-x, 22) * 1%);
       background:#fbbc04;
-      box-shadow:0 0 24px rgba(251,188,4,.18);
+      box-shadow:0 0 32px rgba(251,188,4,.16);
       z-index:1;
     }
 
     .partialDiscMoon{
-      left:calc(var(--partial-moon-x, 50) * 1%);
+      left:calc(var(--partial-moon-x, 30) * 1%);
       background:#2f2f31;
       z-index:2;
     }
 
-.partialOnlyPercent{
-  position:relative;
-  z-index:3;
-  font-size:42px;
-  font-weight:900;
-  line-height:.95;
-  color:#111;
-  margin-bottom:6px;
-  text-shadow:0 2px 6px rgba(255,255,255,.18);
-}
+    .partialOnlyCode{
+      position:relative;
+      z-index:3;
+      font-size:72px;
+      line-height:.9;
+      font-weight:900;
+      letter-spacing:-.06em;
+      color:rgba(15,15,18,.82);
+      text-shadow:0 2px 2px rgba(255,255,255,.05);
+      user-select:none;
+      text-align:center;
+    }
 
-.partialOnlyTitle{
-  position:relative;
-  z-index:3;
-  font-size:18px;
-  font-weight:900;
-  line-height:1.02;
-  color:#fff;
-  margin:0 0 4px;
-  text-transform:uppercase;
-  letter-spacing:.04em;
-  text-wrap:balance;
-}
+    .partialOnlyInfo{
+      min-width:0;
+      position:relative;
+      z-index:3;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+    }
 
-.partialOnlyTime{
-  position:relative;
-  z-index:3;
-  font-size:34px;
-  font-weight:900;
-  line-height:1;
-  color:#fff;
-  margin:0 0 5px;
-  letter-spacing:-.03em;
-}
+    .partialOnlyTitle{
+      font-size:18px;
+      font-weight:900;
+      line-height:1.02;
+      color:#fff;
+      margin:0 0 4px;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+      text-wrap:balance;
+    }
 
-.partialOnlyAltAz{
-  position:relative;
-  z-index:3;
-  display:flex;
-  flex-wrap:wrap;
-  justify-content:center;
-  gap:12px;
-  font-size:14px;
-  font-weight:800;
-  color:#fff;
-  line-height:1.2;
-}
+    .partialOnlyTime{
+      font-size:34px;
+      font-weight:900;
+      line-height:1;
+      color:#fff;
+      margin:0 0 5px;
+      letter-spacing:-.03em;
+    }
 
-.partialOnlyDesc{
-  position:relative;
-  z-index:3;
-  margin-top:6px;
-  font-size:12.5px;
-  line-height:1.28;
-  color:rgba(255,255,255,.94);
-  max-width:34ch;
-  text-wrap:balance;
-}
+    .partialOnlyAltAz{
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:center;
+      gap:12px;
+      font-size:14px;
+      font-weight:800;
+      color:#fff;
+      line-height:1.2;
+    }
+
+    .partialOnlyDesc{
+      margin-top:6px;
+      font-size:12.5px;
+      line-height:1.28;
+      color:rgba(255,255,255,.94);
+      max-width:34ch;
+      text-wrap:balance;
+    }
 
     @media (max-width:640px){
 .momentCard,
@@ -691,53 +694,52 @@ window.__INDEX_HORIZON_ENGINE__ = new HorizonEngine({
   margin-top:5px;
   line-height:1.22;
 }
-
       .partialOnlyCard{
-        min-height:132px;
-        height:132px;
+        min-height:148px;
+        border-radius:16px;
       }
 
       .partialOnlyInner{
-        height:100%;
-        padding:8px 10px 10px;
+        min-height:148px;
+        grid-template-columns:82px 1fr;
+        gap:10px;
+        padding:12px;
       }
 
-.partialOnlySky{
-  height:56px;
-  margin-bottom:2px;
-}
+      .partialOnlySky{
+        inset:0;
+      }
 
- .partialDiscSun,
-.partialDiscMoon{
-  width:108px;
-  height:108px;
-}
+      .partialDiscSun,
+      .partialDiscMoon{
+        width:168px;
+        height:168px;
+      }
 
-.partialOnlyPercent{
-  font-size:32px;
-  margin-bottom:4px;
-}
+      .partialOnlyCode{
+        font-size:48px;
+      }
 
-.partialOnlyTitle{
-  font-size:14px;
-  margin-bottom:4px;
-}
+      .partialOnlyTitle{
+        font-size:14px;
+        margin-bottom:4px;
+      }
 
-.partialOnlyTime{
-  font-size:26px;
-  margin-bottom:4px;
-}
+      .partialOnlyTime{
+        font-size:26px;
+        margin-bottom:4px;
+      }
 
-.partialOnlyAltAz{
-  gap:8px;
-  font-size:12.5px;
-}
+      .partialOnlyAltAz{
+        gap:8px;
+        font-size:12.5px;
+      }
 
-.partialOnlyDesc{
-  font-size:11.5px;
-  margin-top:5px;
-  line-height:1.22;
-}
+      .partialOnlyDesc{
+        font-size:11.5px;
+        margin-top:5px;
+        line-height:1.22;
+      }
 
       .summaryHero{
         grid-template-columns:1fr;
@@ -1103,30 +1105,34 @@ return items
       const azTxt  = info.hMax && Number.isFinite(info.hMax.az)  ? `${info.hMax.az.toFixed(1)}°`  : "—";
       const timeTxt = fmtLocalTimeAstroSec(info.max);
 
-      const sunX = 42;
+      const sunX = 24;
       const d = separationFromObscurationFraction(obscValue ?? 0.5);
-      const moonShiftPct = d * 16.5;
+      const moonShiftPct = d * 9.5;
       const moonX = sunX + moonShiftPct;
 
       return `
         <div class="partialOnlyCard" style="--partial-sun-x:${sunX}; --partial-moon-x:${moonX};">
+          <div class="partialOnlySky">
+            <div class="partialDiscSun"></div>
+            <div class="partialDiscMoon"></div>
+          </div>
+
           <div class="partialOnlyInner">
-            <div class="partialOnlySky">
-              <div class="partialDiscSun"></div>
-              <div class="partialDiscMoon"></div>
+            <div class="partialOnlyCode">${obsc}</div>
+
+            <div class="partialOnlyInfo">
+              <div class="partialOnlyTitle">MÀXIM DE PARCIALITAT</div>
+              <div class="partialOnlyTime">${timeTxt}</div>
+
+              <div class="partialOnlyAltAz">
+                <span>ALT ${altTxt}</span>
+                <span>AZ ${azTxt}</span>
+              </div>
+
+              <div class="partialOnlyDesc">
+                En aquest punt no hi ha totalitat ni anularitat; només s’observa una fase parcial de l’eclipsi.
+              </div>
             </div>
-<div class="partialOnlyPercent">${obsc}</div>
-<div class="partialOnlyTitle">MÀXIM DE PARCIALITAT</div>
-<div class="partialOnlyTime">${timeTxt}</div>
-
-<div class="partialOnlyAltAz">
-  <span>ALT ${altTxt}</span>
-  <span>AZ ${azTxt}</span>
-</div>
-
-<div class="partialOnlyDesc">
-  En aquest punt no hi ha totalitat ni anularitat; només s’observa una fase parcial de l’eclipsi.
-</div>
           </div>
         </div>
       `;
