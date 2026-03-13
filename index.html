@@ -897,17 +897,11 @@
           <input id="rangeKm" inputmode="numeric" placeholder="Ex: 200" value="200">
         </div>
       </div>
-<div class="grid2">
-  <div>
-    <label for="date">Data (YYYY-MM-DD)</label>
-    <input id="date" placeholder="2026-08-12" value="2026-08-12">
-  </div>
-  <div>
-    <label for="centerUtc">Hora clau (UTC, HH:MM)</label>
-    <input id="centerUtc" placeholder="18:30" value="18:30">
-  </div>
+<div style="display:none;">
+  <input id="rangeKm" inputmode="numeric" value="200">
+  <input id="date" value="2026-08-12">
+  <input id="centerUtc" value="18:30">
 </div>
-<div class="hint">L’hora és en UTC (després ja ho automatitzarem amb l’eclipsi real).</div>
 
       <div class="hint">Pots deixar l’altura buida: si no hi és, posarem 0 m.</div>
     </div>
@@ -915,7 +909,6 @@
 <div class="ctaRow">
   <button class="primary" id="btnGo" disabled>Veure resum de l’eclipsi →</button>
 </div>
-
   <div class="card">
     <div class="hint">
       <b>Privacitat:</b> la ubicació només s’usa dins el teu dispositiu. Si no vols donar permís, usa el mode manual.
@@ -1291,20 +1284,22 @@ function initMapIfNeeded(){
       hideSelectedLocation();
 
       const v = validateManual();
-           if(v.ok){
-        clearStatus();
+if(v.ok){
+  clearStatus();
+  showSelectedLocation(v.lat, v.lon, v.alt);
 
-        saveLastLocation({
-          lat: v.lat,
-          lon: v.lon,
-          alt: v.alt,
-          rangeKm: v.rangeKm,
-          date: (dateEl.value || "2026-08-12").trim(),
-          centerUtc: (centerUtcEl.value || "18:30").trim()
-        });
-      } else {
-        setStatus("Introdueix lat/lon vàlids.", false);
-      }
+  saveLastLocation({
+    lat: v.lat,
+    lon: v.lon,
+    alt: v.alt,
+    rangeKm: v.rangeKm,
+    date: (dateEl.value || "2026-08-12").trim(),
+    centerUtc: (centerUtcEl.value || "18:30").trim()
+  });
+} else {
+  hideSelectedLocation();
+  setStatus("Introdueix lat/lon vàlids.", false);
+}
       enableGoIfReady();
     }
   });
