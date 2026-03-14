@@ -991,7 +991,6 @@
         </div>
       </div>
 <div style="display:none;">
-  <input id="rangeKm" inputmode="numeric" value="200">
   <input id="date" value="2026-08-12">
   <input id="centerUtc" value="18:30">
 </div>
@@ -1002,7 +1001,7 @@
 <div class="ctaRow">
   <button class="primary" id="btnGo" disabled>Veure resum de l’eclipsi →</button>
 </div>
-
+</div>
 <div class="card">
   <div class="sectionTitle">Informació dels eclipsis</div>
 
@@ -1029,7 +1028,6 @@
     <b>Privacitat:</b> la ubicació només s’usa dins el teu dispositiu. Si no vols donar permís, usa el mode manual.
   </div>
 </div>
-</div>
 <div id="mapModal" class="modal ocult" aria-hidden="true">
   <div class="modalCard">
     <div class="modalTop">
@@ -1046,7 +1044,9 @@
       <button class="primary" id="mapOk">Usar aquesta localització</button>
     </div>
   </div>
-  <div id="infoModal" class="modal ocult" aria-hidden="true">
+</div>
+
+<div id="infoModal" class="modal ocult" aria-hidden="true">
   <div class="infoImageCard">
     <div class="modalTop">
       <div class="modalTitle" id="infoModalTitle">Infografia</div>
@@ -1061,7 +1061,6 @@
       <button id="infoCloseBottom">Tancar</button>
     </div>
   </div>
-</div>
 </div>
 <script>
   const btnGPS = document.getElementById("btnGPS");
