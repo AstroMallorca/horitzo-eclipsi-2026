@@ -388,37 +388,43 @@
   }
 
   .infoImageCard{
-    width:min(1100px, 96vw);
-    height:min(92vh, 1000px);
+    position:relative;
+    width:min(96vw, 760px);
+    height:92vh;
     background:linear-gradient(180deg, rgba(11,17,34,.98), rgba(7,12,24,.99));
     border:1px solid var(--border);
     border-radius:20px;
-    overflow:hidden;
-    display:flex;
-    flex-direction:column;
+    overflow:auto;
     box-shadow:0 25px 70px rgba(0,0,0,.45);
   }
 
   .infoImageWrap{
-    flex:1;
-    min-height:0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:12px;
+    padding:0;
     background:rgba(255,255,255,.015);
   }
 
   .infoImage{
-    max-width:100%;
-    max-height:100%;
-    width:auto;
+    display:block;
+    width:100%;
     height:auto;
+    max-width:none;
+    max-height:none;
     object-fit:contain;
-    border-radius:12px;
-    box-shadow:0 14px 30px rgba(0,0,0,.28);
   }
-
+  .infoModalClose{
+    position:sticky;
+    top:12px;
+    right:12px;
+    margin-left:auto;
+    display:block;
+    z-index:5;
+    width:48px;
+    height:48px;
+    padding:0;
+    border-radius:16px;
+    background:rgba(10,16,32,.82);
+    backdrop-filter:blur(8px);
+  }
   @media (max-width:640px){
     .infoCards{
       grid-template-columns:1fr;
@@ -432,13 +438,21 @@
     }
 
     .infoImageCard{
-      width:min(100%, 100vw);
-      height:min(94vh, 100%);
+      width:100%;
+      height:94vh;
       border-radius:18px;
     }
 
     .infoImageWrap{
-      padding:8px;
+      padding:0;
+    }
+
+    .infoModalClose{
+      top:10px;
+      right:10px;
+      width:46px;
+      height:46px;
+      border-radius:14px;
     }
   }
   #eclipseInfo{
@@ -1046,20 +1060,12 @@
     </div>
   </div>
 </div>
-
 <div id="infoModal" class="modal ocult" aria-hidden="true">
   <div class="infoImageCard">
-    <div class="modalTop">
-      <div class="modalTitle" id="infoModalTitle">Infografia</div>
-      <button id="infoClose" class="modalX">✕</button>
-    </div>
+    <button id="infoClose" class="modalX infoModalClose">✕</button>
 
     <div class="infoImageWrap">
       <img id="infoImage" class="infoImage" src="" alt="Infografia dels eclipsis">
-    </div>
-
-    <div class="modalActions">
-      <button id="infoCloseBottom">Tancar</button>
     </div>
   </div>
 </div>
@@ -1079,8 +1085,6 @@ const btnInfoSeguretat = document.getElementById("btnInfoSeguretat");
 
 const infoModal = document.getElementById("infoModal");
 const infoClose = document.getElementById("infoClose");
-const infoCloseBottom = document.getElementById("infoCloseBottom");
-const infoModalTitle = document.getElementById("infoModalTitle");
 const infoImage = document.getElementById("infoImage");
   const manualBox = document.getElementById("manualBox");
   const statusEl = document.getElementById("status");
@@ -1094,8 +1098,7 @@ const centerUtcEl = document.getElementById("centerUtc");
   const selectedLocationCard = document.getElementById("selectedLocationCard");
   const selectedLocationInfo = document.getElementById("selectedLocationInfo");
   
-  if (btnInfoTrio && btnInfo2026 && btnInfoSeguretat && infoModal && infoClose && infoCloseBottom && infoModalTitle && infoImage) {
-  btnInfoTrio.addEventListener("click", () => {
+if (btnInfoTrio && btnInfo2026 && btnInfoSeguretat && infoModal && infoClose && infoImage) {  btnInfoTrio.addEventListener("click", () => {
     openInfoModal("TRIO D'ECLIPSIS", "assets/Info/InfografiaEclipsisRollUp.png");
   });
 
@@ -1108,7 +1111,6 @@ const centerUtcEl = document.getElementById("centerUtc");
   });
 
   infoClose.addEventListener("click", closeInfoModal);
-  infoCloseBottom.addEventListener("click", closeInfoModal);
 
   infoModal.addEventListener("click", (e) => {
     if (e.target === infoModal) closeInfoModal();
@@ -1320,11 +1322,13 @@ function closeMapModal(){
   mapModal.setAttribute("aria-hidden", "true");
 }
 function openInfoModal(title, imagePath){
-  infoModalTitle.textContent = title;
   infoImage.src = imagePath;
   infoImage.alt = title;
   infoModal.classList.remove("ocult");
   infoModal.setAttribute("aria-hidden", "false");
+
+  const scroller = infoModal.querySelector(".infoImageCard");
+  if (scroller) scroller.scrollTop = 0;
 }
 
 function closeInfoModal(){
