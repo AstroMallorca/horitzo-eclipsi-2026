@@ -347,7 +347,100 @@
   .modalActions > button{
     flex:1 1 0;
   }
+  .infoCards{
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0,1fr));
+    gap:10px;
+    margin-top:14px;
+  }
 
+  .infoCardBtn{
+    appearance:none;
+    width:100%;
+    text-align:center;
+    padding:16px 14px;
+    border-radius:16px;
+    border:1px solid var(--border);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.025));
+    color:var(--text);
+    font-size:14px;
+    font-weight:800;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    box-shadow:var(--shadow-soft);
+  }
+
+  .infoCardBtn:hover{
+    border-color:var(--border-strong);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.035));
+  }
+
+  .infoCardSub{
+    display:block;
+    margin-top:6px;
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:.02em;
+    text-transform:none;
+    color:var(--muted);
+  }
+
+  .infoImageCard{
+    width:min(1100px, 96vw);
+    height:min(92vh, 1000px);
+    background:linear-gradient(180deg, rgba(11,17,34,.98), rgba(7,12,24,.99));
+    border:1px solid var(--border);
+    border-radius:20px;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    box-shadow:0 25px 70px rgba(0,0,0,.45);
+  }
+
+  .infoImageWrap{
+    flex:1;
+    min-height:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:12px;
+    background:rgba(255,255,255,.015);
+  }
+
+  .infoImage{
+    max-width:100%;
+    max-height:100%;
+    width:auto;
+    height:auto;
+    object-fit:contain;
+    border-radius:12px;
+    box-shadow:0 14px 30px rgba(0,0,0,.28);
+  }
+
+  @media (max-width:640px){
+    .infoCards{
+      grid-template-columns:1fr;
+      gap:10px;
+    }
+
+    .infoCardBtn{
+      padding:14px 12px;
+      border-radius:14px;
+      font-size:13.5px;
+    }
+
+    .infoImageCard{
+      width:min(100%, 100vw);
+      height:min(94vh, 100%);
+      border-radius:18px;
+    }
+
+    .infoImageWrap{
+      padding:8px;
+    }
+  }
   #eclipseInfo{
     font-size:15px;
     line-height:1.6;
@@ -909,11 +1002,33 @@
 <div class="ctaRow">
   <button class="primary" id="btnGo" disabled>Veure resum de l’eclipsi →</button>
 </div>
-  <div class="card">
-    <div class="hint">
-      <b>Privacitat:</b> la ubicació només s’usa dins el teu dispositiu. Si no vols donar permís, usa el mode manual.
-    </div>
+
+<div class="card">
+  <div class="sectionTitle">Informació dels eclipsis</div>
+
+  <div class="infoCards">
+    <button type="button" class="infoCardBtn" id="btnInfoTrio">
+      TRIO D'ECLIPSIS
+      <span class="infoCardSub">Obrir infografia</span>
+    </button>
+
+    <button type="button" class="infoCardBtn" id="btnInfo2026">
+      ECLIPSI DEL 2026
+      <span class="infoCardSub">Obrir infografia</span>
+    </button>
+
+    <button type="button" class="infoCardBtn" id="btnInfoSeguretat">
+      SEGURETAT
+      <span class="infoCardSub">Obrir infografia</span>
+    </button>
   </div>
+</div>
+
+<div class="card">
+  <div class="hint">
+    <b>Privacitat:</b> la ubicació només s’usa dins el teu dispositiu. Si no vols donar permís, usa el mode manual.
+  </div>
+</div>
 </div>
 <div id="mapModal" class="modal ocult" aria-hidden="true">
   <div class="modalCard">
@@ -931,6 +1046,22 @@
       <button class="primary" id="mapOk">Usar aquesta localització</button>
     </div>
   </div>
+  <div id="infoModal" class="modal ocult" aria-hidden="true">
+  <div class="infoImageCard">
+    <div class="modalTop">
+      <div class="modalTitle" id="infoModalTitle">Infografia</div>
+      <button id="infoClose" class="modalX">✕</button>
+    </div>
+
+    <div class="infoImageWrap">
+      <img id="infoImage" class="infoImage" src="" alt="Infografia dels eclipsis">
+    </div>
+
+    <div class="modalActions">
+      <button id="infoCloseBottom">Tancar</button>
+    </div>
+  </div>
+</div>
 </div>
 <script>
   const btnGPS = document.getElementById("btnGPS");
@@ -942,6 +1073,15 @@ const mapCancel = document.getElementById("mapCancel");
 const mapOk = document.getElementById("mapOk");
 const mapInfo = document.getElementById("mapInfo");
   const btnGo = document.getElementById("btnGo");
+  const btnInfoTrio = document.getElementById("btnInfoTrio");
+const btnInfo2026 = document.getElementById("btnInfo2026");
+const btnInfoSeguretat = document.getElementById("btnInfoSeguretat");
+
+const infoModal = document.getElementById("infoModal");
+const infoClose = document.getElementById("infoClose");
+const infoCloseBottom = document.getElementById("infoCloseBottom");
+const infoModalTitle = document.getElementById("infoModalTitle");
+const infoImage = document.getElementById("infoImage");
   const manualBox = document.getElementById("manualBox");
   const statusEl = document.getElementById("status");
 const dateEl = document.getElementById("date");
@@ -953,6 +1093,27 @@ const centerUtcEl = document.getElementById("centerUtc");
   const rangeEl = document.getElementById("rangeKm");
   const selectedLocationCard = document.getElementById("selectedLocationCard");
   const selectedLocationInfo = document.getElementById("selectedLocationInfo");
+  
+  if (btnInfoTrio && btnInfo2026 && btnInfoSeguretat && infoModal && infoClose && infoCloseBottom && infoModalTitle && infoImage) {
+  btnInfoTrio.addEventListener("click", () => {
+    openInfoModal("TRIO D'ECLIPSIS", "assets/info/InfografiaEclipsisRollUp.png");
+  });
+
+  btnInfo2026.addEventListener("click", () => {
+    openInfoModal("ECLIPSI DEL 2026", "assets/info/InfografiaEclipsisMallorcaRollUp.png");
+  });
+
+  btnInfoSeguretat.addEventListener("click", () => {
+    openInfoModal("SEGURETAT", "assets/info/InfografiaEclipsisSeguretatRollUp.png");
+  });
+
+  infoClose.addEventListener("click", closeInfoModal);
+  infoCloseBottom.addEventListener("click", closeInfoModal);
+
+  infoModal.addEventListener("click", (e) => {
+    if (e.target === infoModal) closeInfoModal();
+  });
+}
 if (!btnMap || !mapModal || !mapOk || !mapCancel || !mapClose || !mapInfo) {
   console.warn("Mapa no inicialitzat: falta HTML del modal o el botó btnMap.");
 } else {
@@ -1158,7 +1319,19 @@ function closeMapModal(){
   mapModal.classList.add("ocult");
   mapModal.setAttribute("aria-hidden", "true");
 }
+function openInfoModal(title, imagePath){
+  infoModalTitle.textContent = title;
+  infoImage.src = imagePath;
+  infoImage.alt = title;
+  infoModal.classList.remove("ocult");
+  infoModal.setAttribute("aria-hidden", "false");
+}
 
+function closeInfoModal(){
+  infoModal.classList.add("ocult");
+  infoModal.setAttribute("aria-hidden", "true");
+  infoImage.src = "";
+}
 function updateMapInfo(){
   mapInfo.textContent =
     `lat ${picked.lat?.toFixed(6) ?? "—"}, lon ${picked.lon?.toFixed(6) ?? "—"}, alt ${Math.round(picked.alt ?? 0)} m`;
