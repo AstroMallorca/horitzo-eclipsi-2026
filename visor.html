@@ -794,21 +794,20 @@ function render(sunPts, moonPts, sunAtCenter, sunMarks, moonMarks){
   const availH = H - VIEW.padding.t - VIEW.padding.b;
   const altSpan = VIEW.altMax - VIEW.altMin;
 
-const leftCandidates = [
-  C1_AZ,
-  BASE_AZ ? BASE_AZ.min : NaN
-].filter(Number.isFinite);
+const sideMarginAz = 0.8;
 
-const rightCandidates = [
-  LOCAL_SET_AZ,
-  PEAK_AZ,
-  SEA_SET_AZ,
-  SET_AZ,
-  BASE_AZ ? BASE_AZ.max : NaN
-].filter(Number.isFinite);
+const leftBaseAz = Number.isFinite(C1_AZ)
+  ? C1_AZ
+  : (BASE_AZ && Number.isFinite(BASE_AZ.min) ? BASE_AZ.min : 220);
 
-const leftAz = leftCandidates.length ? Math.min(...leftCandidates) : BASE_AZ.min;
-const rightAz = rightCandidates.length ? Math.max(...rightCandidates) : BASE_AZ.max;
+const rightBaseAz = Number.isFinite(SET_AZ)
+  ? SET_AZ
+  : Number.isFinite(SEA_SET_AZ)
+    ? SEA_SET_AZ
+    : (BASE_AZ && Number.isFinite(BASE_AZ.max) ? BASE_AZ.max : 300);
+
+const leftAz = leftBaseAz - sideMarginAz;
+const rightAz = rightBaseAz + sideMarginAz;
 
   const midAz = (leftAz + rightAz) / 2;
   const marginLayoutAz = 1.0;
