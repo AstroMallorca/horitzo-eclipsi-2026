@@ -276,22 +276,51 @@ function drawSeaLevel(){
   ctx.stroke();
   ctx.restore();
 }
+function drawSkyGradient(profile){
+  if(!PLOT || !profile) return;
 
-function drawGrid(W, H){
+  const { az0, daz, alt } = profile;
+
   ctx.save();
-  ctx.lineWidth = 1;
 
-  for(let alt = Math.ceil(VIEW.altMin / VIEW.gridAltStep) * VIEW.gridAltStep; alt <= VIEW.altMax; alt += VIEW.gridAltStep){
-    const y = mapY(alt);
-    const bold = (alt % 10 === 0);
-    ctx.strokeStyle = bold ? "rgba(255,0,180,0.40)" : "rgba(255,0,180,0.22)";
-    ctx.beginPath();
-    ctx.moveTo(PLOT.x0, y);
-    ctx.lineTo(PLOT.x1, y);
-    ctx.stroke();
+  const grad = ctx.createLinearGradient(0, PLOT.y1, 0, PLOT.y0);
+  grad.addColorStop(0, "#0a1a3a");
+  grad.addColorStop(0.55, "#1b4f8a");
+  grad.addColorStop(1, "#6ea8d9");
+
+  ctx.beginPath();
+  ctx.moveTo(PLOT.x0, PLOT.y1);
+
+  let started = false;
+
+  for(let i = 0; i < alt.length; i++){
+    const az = az0 + i * daz;
+    if(!inViewAz(az)) continue;
+
+    const a = alt[i];
+    if(!Number.isFinite(a)) continue;
+
+    const x = mapX(az);
+    const y = mapY(a);
+
+    if(!started){
+      ctx.lineTo(x, y);
+      started = true;
+    } else {
+      ctx.lineTo(x, y);
+    }
   }
 
+  ctx.lineTo(PLOT.x1, PLOT.y1);
+  ctx.closePath();
+
+  ctx.fillStyle = grad;
+  ctx.fill();
+
   ctx.restore();
+}
+function drawGrid(W, H){
+  return;
 }
 
 function drawHorizon(profile){
@@ -544,8 +573,10 @@ function drawMoonDiscs(marks){
     const y = mapY(m.alt);
 
     const col = m.color || "rgba(70,160,255,0.95)";
-    ctx.strokeStyle = col;
+    const isBlackMoon = col === "rgba(0,0,0,0.98)";
+
     ctx.fillStyle = col;
+    ctx.strokeStyle = isBlackMoon ? "rgba(255,255,255,0.45)" : col;
 
     ctx.beginPath();
     ctx.arc(x, y, rPx, 0, Math.PI * 2);
@@ -738,6 +769,7 @@ const rightAz = rightBaseAz + sideMarginAz;
     y0: VIEW.padding.t + extraY + realPlotH
   };
 
+  drawSkyGradient(CURRENT_PROFILE_DISPLAY || CURRENT_PROFILE);
   drawGrid(W, H);
   drawSeaLevel();
   drawHorizon(CURRENT_PROFILE_DISPLAY || CURRENT_PROFILE);
@@ -825,7 +857,7 @@ if(ECL && ECL.partial_begin && ECL.partial_begin.time){
 
 if(ECL && ECL.peak && ECL.peak.time){
   const pm = moonHorAtAstroTime(ECL.peak.time, OBS);
-  if(pm) moonMarks.push({ ...pm, label: `Lluna màxim`, color: "rgba(70,160,255,0.95)" });
+  if(pm) moonMarks.push({ ...pm, color: "rgba(0,0,0,0.98)" });
 }
 
 if(ECL && ECL.peak && ECL.peak.time){
