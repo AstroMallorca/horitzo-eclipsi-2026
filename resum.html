@@ -1016,7 +1016,38 @@ function eclipseMomentCardHtml(code, title, timeAstro, hor, imagePath, desc, tra
     </div>
   `;
 }
-function buildOrderedMomentCards(info, hasCentral){
+function buildOrderedMomentCards(info, hasCentral, obstacleSet){
+  const setHor = obstacleSet
+    ? { alt: obstacleSet.alt, az: obstacleSet.az }
+    : info.hSet;
+
+  const setTimeTxt = obstacleSet === undefined
+    ? "CALCULANT…"
+    : obstacleSet
+      ? fmtLocalTimeAstroSec(obstacleSet.time)
+      : "NO DISPONIBLE";
+
+  const setAltTxt = setHor && Number.isFinite(setHor.alt) ? `${setHor.alt.toFixed(1)}°` : "—";
+  const setAzTxt  = setHor && Number.isFinite(setHor.az)  ? `${setHor.az.toFixed(1)}°`  : "—";
+
+  const setCardHtml = `
+    <div class="momentCard" style="--moment-image:url('assets/Moments/set.png'); --moment-transform:none;">
+      <div class="momentInner">
+        <div class="momentCode">SET</div>
+
+        <div class="momentInfo">
+          <div class="momentTitle">Posta de sol</div>
+          <div class="momentTime">${setTimeTxt}</div>
+          <div class="momentAltAz">
+            <span>ALT ${setAltTxt}</span>
+            <span>AZ ${setAzTxt}</span>
+          </div>
+          <div class="momentDesc">Moment en què el Sol es pon a l’horitzó local des d’aquest punt.</div>
+        </div>
+      </div>
+    </div>
+  `;
+
   const items = [
     {
       time: info.c1,
@@ -1030,15 +1061,8 @@ function buildOrderedMomentCards(info, hasCentral){
       )
     },
     {
-      time: info.sunset,
-      html: eclipseMomentCardHtml(
-        "SET",
-        "Posta de sol",
-        info.sunset,
-        info.hSet,
-        "assets/Moments/set.png",
-        "Moment en què el Sol es pon a l’horitzó astronòmic des d’aquest punt."
-      )
+      time: obstacleSet?.time || info.sunset,
+      html: setCardHtml
     }
   ];
 
@@ -1728,7 +1752,7 @@ setHorizonButtonReady();
           <div class="summaryBlockTitle">Moments de l’eclipsi · hora local</div>
 
 <div class="momentGrid">
-  ${buildOrderedMomentCards(info, hasCentral)}
+  ${buildOrderedMomentCards(info, hasCentral, obstacleSet)}
 </div>
         </div>
 
