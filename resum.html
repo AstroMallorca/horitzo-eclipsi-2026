@@ -231,6 +231,11 @@ button.primary{
   text-align:center;
   letter-spacing:.08em;
   text-transform:uppercase;
+  min-height:24px;
+}
+
+#maxVisibilityStatus:empty{
+  display:none;
 }
 
 #maxVisibilityStatus.maxVisible{
@@ -1377,6 +1382,70 @@ function smoothProfileForDisplay(arr, windowSize = 5){
       const t = f - i0;
       return v0 + (v1 - v0) * t;
     }
+    async function computeLocalMaxVisibility(lat, lon, alt, rangeKm){
+  const info = computeLocalEclipseSummary(lat, lon, alt);
+  if(!info || !info.max || !info.hMax || !Number.isFinite(info.hMax.alt) || !Number.isFinite(info.hMax.az)){
+    return null;
+  }
+
+  const engine = await waitForHorizonEngine();
+  if(!engine) return null;
+
+  const result = await engine.computeProfile({
+    lat,
+    lon,
+    observerAltM: alt,
+    centerAzDeg: info.hMax.az,
+    fovDeg: 8,
+    samples: 100,
+    maxDistM: Math.max(20000, Math.min(200000, (rangeKm || 100) * 1000))
+  });
+
+  const profile = {
+    az0: result.az0,
+    daz: result.daz,
+    alt: Array.from(result.alt)
+  };
+
+  const localHorizonAlt = profileAltAtAz(profile, info.hMax.az);
+  if(!Number.isFinite(localHorizonAlt)) return null;
+
+  const sunAlt = info.hMax.alt;
+  const hasCentral = !!(info.c2 && info.c3 && info.max);
+
+  return {
+    sunAlt,
+    localHorizonAlt,
+    isVisible: sunAlt > localHorizonAlt,
+    hasCentral
+  };
+}
+
+async function refreshMaxVisibilityStatus(lat, lon, alt, rangeKm){
+  const el = document.getElementById("maxVisibilityStatus");
+  if(!el) return;
+
+  el.textContent = "";
+  el.className = "";
+
+  try{
+    const result = await computeLocalMaxVisibility(lat, lon, alt, rangeKm);
+    if(!result) return;
+
+    if(!result.isVisible){
+      el.textContent = "MÀXIM NO VISIBLE";
+      el.className = "maxNotVisible";
+    }else if(result.hasCentral){
+      el.textContent = "MÀXIM VISIBLE";
+      el.className = "maxVisible";
+    }else{
+      el.textContent = "VISIÓ PARCIAL";
+      el.className = "maxPartial";
+    }
+  }catch(err){
+    console.warn("No s'ha pogut calcular la visibilitat local del màxim", err);
+  }
+}
 async function precomputeVisorProfile(lat, lon, alt, rangeKm, dateStr, centerUtc){
   try{
     const engine = await waitForHorizonEngine();
@@ -1773,37 +1842,16 @@ function updateLocationCard(){
 
   let peakDateLocal = "—";
   let peakTimeLocal = "—";
-  let maxStatusText = "MÀXIM NO VISIBLE";
-  let maxStatusClass = "maxNotVisible";
 
   try{
     const obs = new Astronomy.Observer(lat, lon, Number.isFinite(alt) ? alt : 0);
     const date = new Date(Date.UTC(2026, 7, 12, 0, 0, 0));
     const ecl = Astronomy.SearchLocalSolarEclipse(date, obs);
 
-    const peakTime = ecl?.peak?.time || null;
-    const peakDateObj = astroToDate(peakTime);
-
+    const peakDateObj = astroToDate(ecl?.peak?.time || null);
     if(peakDateObj instanceof Date){
       peakDateLocal = fmtMallorcaDateFromDate(peakDateObj);
       peakTimeLocal = fmtMallorcaHmsFromDate(peakDateObj);
-    }
-
-    const hMax = sunHorAtTimeForIndex(peakTime, obs);
-    const maxIsAboveHorizon = !!(hMax && Number.isFinite(hMax.alt) && hMax.alt > 0);
-
-    const hasCentral =
-      !!((ecl?.total_begin && ecl?.total_end) || (ecl?.annular_begin && ecl?.annular_end));
-
-    if(!maxIsAboveHorizon){
-      maxStatusText = "MÀXIM NO VISIBLE";
-      maxStatusClass = "maxNotVisible";
-    }else if(hasCentral){
-      maxStatusText = "MÀXIM VISIBLE";
-      maxStatusClass = "maxVisible";
-    }else{
-      maxStatusText = "VISIÓ PARCIAL";
-      maxStatusClass = "maxPartial";
     }
   }catch(err){
     console.warn("No s'ha pogut calcular la data/hora local del màxim", err);
@@ -1814,7 +1862,7 @@ function updateLocationCard(){
     <div><b>Altitud:</b> ${Math.round(alt)} m</div>
     <div><b>Data:</b> ${peakDateLocal}</div>
     <div><b>Hora del màxim:</b> ${peakTimeLocal}</div>
-    <div id="maxVisibilityStatus" class="${maxStatusClass}">${maxStatusText}</div>
+    <div id="maxVisibilityStatus"></div>
   `;
 }
 
@@ -1847,6 +1895,7 @@ if(Number.isFinite(lat) && Number.isFinite(lon)){
   const safeRangeKm = Number.isFinite(rangeKm) ? rangeKm : 200;
 
   refreshEclipseSummary(lat, lon, safeAlt);
+  refreshMaxVisibilityStatus(lat, lon, safeAlt, safeRangeKm);
 
   setHorizonButtonLoading();
   precomputeVisorProfile(lat, lon, safeAlt, safeRangeKm, dateStr, centerUtc);
