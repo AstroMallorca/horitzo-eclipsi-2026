@@ -794,8 +794,21 @@ function render(sunPts, moonPts, sunAtCenter, sunMarks, moonMarks){
   const availH = H - VIEW.padding.t - VIEW.padding.b;
   const altSpan = VIEW.altMax - VIEW.altMin;
 
-  const leftAz  = Number.isFinite(C1_AZ) ? C1_AZ : BASE_AZ.min;
-  const rightAz = Number.isFinite(LOCAL_SET_AZ) ? LOCAL_SET_AZ : (Number.isFinite(SEA_SET_AZ) ? SEA_SET_AZ : (Number.isFinite(SET_AZ) ? SET_AZ : BASE_AZ.max));
+const leftCandidates = [
+  C1_AZ,
+  BASE_AZ ? BASE_AZ.min : NaN
+].filter(Number.isFinite);
+
+const rightCandidates = [
+  LOCAL_SET_AZ,
+  PEAK_AZ,
+  SEA_SET_AZ,
+  SET_AZ,
+  BASE_AZ ? BASE_AZ.max : NaN
+].filter(Number.isFinite);
+
+const leftAz = leftCandidates.length ? Math.min(...leftCandidates) : BASE_AZ.min;
+const rightAz = rightCandidates.length ? Math.max(...rightCandidates) : BASE_AZ.max;
 
   const midAz = (leftAz + rightAz) / 2;
   const marginLayoutAz = 1.0;
