@@ -1314,12 +1314,12 @@ return items
 
       return "Eclipsi solar";
     }
-async function waitForHorizonEngine(maxWaitMs = 4000){
+async function waitForHorizonEngine(maxWaitMs = 30000){
   const t0 = performance.now();
 
   while(performance.now() - t0 < maxWaitMs){
     if(window.__INDEX_HORIZON_ENGINE__) return window.__INDEX_HORIZON_ENGINE__;
-    await new Promise(r => setTimeout(r, 40));
+    await new Promise(r => setTimeout(r, 80));
   }
 
   return null;
@@ -1568,92 +1568,120 @@ setHorizonButtonReady();
   setHorizonButtonReady();
   }
 }
- async function computeObstacleSunset(lat, lon, alt, seaSetTime){
-  const engine = await waitForHorizonEngine();
+async function computeObstacleSunset(lat, lon, alt, seaSetTime, rangeKm){
+  const engine = await waitForHorizonEngine(30000);
   if (!engine || !seaSetTime) return null;
 
-      const obs = new Astronomy.Observer(lat, lon, alt);
-      const seaHor = sunHorAtTimeForIndex(seaSetTime, obs);
-      if (!seaHor || !Number.isFinite(seaHor.az)) return null;
+  const obs = new Astronomy.Observer(lat, lon, alt);
+  const seaHor = sunHorAtTimeForIndex(seaSetTime, obs);
+  if (!seaHor || !Number.isFinite(seaHor.az)) return null;
 
-      const centerAzDeg = seaHor.az;
-      const fovDeg = 10;
-      const samples = 80;
-      const maxDistM = 70000;
+  const centerAzDeg = seaHor.az;
+  const fovDeg = 18;
+  const samples = 181;
+  const maxDistM = Math.max(70000, Math.min(200000, (rangeKm || 100) * 1000));
 
-      const result = await engine.computeProfile({
-        lat,
-        lon,
-        observerAltM: alt,
-        centerAzDeg,
-        fovDeg,
-        samples,
-        maxDistM
-      });
+  const result = await engine.computeProfile({
+    lat,
+    lon,
+    observerAltM: alt,
+    centerAzDeg,
+    fovDeg,
+    samples,
+    maxDistM
+  });
 
-      const profile = {
-        az0: result.az0,
-        daz: result.daz,
-        alt: Array.from(result.alt)
-      };
+  const rawAlt = Array.from(result.alt);
+  const filledAlt = fillGapsLinear(rawAlt, 8);
 
-      const SUN_R_DEG = 0.266;
+  const profile = {
+    az0: result.az0,
+    daz: result.daz,
+    alt: filledAlt
+  };
 
-      let t0 = seaSetTime;
-      if (t0.time) t0 = t0.time;
+  const SUN_R_DEG = 0.266;
 
-      let d0 = null;
-      if (t0 instanceof Date) d0 = t0;
-      else if (t0.date instanceof Date) d0 = t0.date;
-      else if (typeof t0.toDate === "function") d0 = t0.toDate();
+  let t0 = seaSetTime;
+  if (t0.time) t0 = t0.time;
 
-      if (!d0) return null;
+  let d0 = null;
+  if (t0 instanceof Date) d0 = t0;
+  else if (t0.date instanceof Date) d0 = t0.date;
+  else if (typeof t0.toDate === "function") d0 = t0.toDate();
 
-      const startMs = d0.getTime() - 45 * 60 * 1000;
-      const endMs   = d0.getTime() + 10 * 60 * 1000;
+  if (!d0) return null;
 
-      let prev = null;
+  const startMs = d0.getTime() - 3 * 60 * 60 * 1000;
+  const endMs   = d0.getTime() + 15 * 60 * 1000;
 
-      for(let ms = startMs; ms <= endMs; ms += 15 * 1000){
-        const time = Astronomy.MakeTime(new Date(ms));
-        const s = sunHorAtTimeForIndex(time, obs);
-        if (!s) continue;
+  let prev = null;
+  let best = null;
 
-        const hHor = profileAltAtAz(profile, s.az);
-        if (!Number.isFinite(hHor)) continue;
+  function makeSample(ms){
+    const time = Astronomy.MakeTime(new Date(ms));
+    const s = sunHorAtTimeForIndex(time, obs);
+    if (!s) return null;
 
-        const delta = s.alt - (hHor - SUN_R_DEG);
-        const cur = { time, delta, az: s.az, alt: s.alt, hHor };
+    const hHor = profileAltAtAz(profile, s.az);
+    if (!Number.isFinite(hHor)) return null;
 
-        if (prev && prev.delta > 0 && cur.delta <= 0){
-          const dA = prev.delta;
-          const dB = cur.delta;
-          const f = dA / (dA - dB);
+    const delta = (s.alt + SUN_R_DEG) - hHor;
 
-          const tPrev = prev.time.toDate ? prev.time.toDate() : (prev.time.date || null);
-          const tCur  = cur.time.toDate ? cur.time.toDate() : (cur.time.date || null);
+    return { time, delta, az: s.az, alt: s.alt, hHor };
+  }
 
-          if (tPrev && tCur){
-            const hitDate = new Date(tPrev.getTime() + f * (tCur.getTime() - tPrev.getTime()));
-            const hitAz = prev.az + f * (cur.az - prev.az);
-            const hitAlt = prev.alt + f * (cur.alt - prev.alt);
-            const hitHor = prev.hHor + f * (cur.hHor - prev.hHor);
+  for(let ms = startMs; ms <= endMs; ms += 10 * 1000){
+    const cur = makeSample(ms);
+    if (!cur) continue;
 
-            return {
-              time: Astronomy.MakeTime(hitDate),
-              az: hitAz,
-              alt: hitAlt,
-              hHor: hitHor,
-              profile
-            };
-          }
-        }
+    if (!best || Math.abs(cur.delta) < Math.abs(best.delta)) {
+      best = cur;
+    }
 
-        prev = cur;
+    if (prev && prev.delta > 0 && cur.delta <= 0){
+      let left = prev;
+      let right = cur;
+
+      for(let i = 0; i < 18; i++){
+        const leftDate  = left.time.toDate ? left.time.toDate() : (left.time.date || null);
+        const rightDate = right.time.toDate ? right.time.toDate() : (right.time.date || null);
+        if (!leftDate || !rightDate) break;
+
+        const midMs = 0.5 * (leftDate.getTime() + rightDate.getTime());
+        const mid = makeSample(midMs);
+        if (!mid) break;
+
+        if (mid.delta > 0) left = mid;
+        else right = mid;
       }
 
-      return null;
+      const hit = right;
+      return {
+        time: hit.time,
+        az: hit.az,
+        alt: hit.alt,
+        hHor: hit.hHor,
+        profile
+      };
     }
+
+    prev = cur;
+  }
+
+  if (best) {
+    return {
+      time: best.time,
+      az: best.az,
+      alt: best.alt,
+      hHor: best.hHor,
+      profile,
+      approximate: true
+    };
+  }
+
+  return null;
+}
 
     function computeLocalEclipseSummary(lat, lon, alt){
       const obs = new Astronomy.Observer(lat, lon, alt);
@@ -1848,7 +1876,7 @@ setHorizonButtonReady();
           return;
         }
 
-        const obstacleSet = await computeObstacleSunset(lat, lon, alt, info.sunset);
+        cconst obstacleSet = await computeObstacleSunset(lat, lon, alt, info.sunset, rangeKm);
 
         if(reqId !== __summaryReqId) return;
         renderLocalEclipseSummary(lat, lon, alt, info, obstacleSet ?? null);
