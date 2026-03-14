@@ -1864,7 +1864,7 @@ async function computeObstacleSunset(lat, lon, alt, seaSetTime, rangeKm){
       `;
     }
 
-    async function refreshEclipseSummary(lat, lon, alt){
+    async function refreshEclipseSummary(lat, lon, alt, rangeKm){
       const reqId = ++__summaryReqId;
 
       try{
@@ -1876,7 +1876,7 @@ async function computeObstacleSunset(lat, lon, alt, seaSetTime, rangeKm){
           return;
         }
 
-        cconst obstacleSet = await computeObstacleSunset(lat, lon, alt, info.sunset, rangeKm);
+        const obstacleSet = await computeObstacleSunset(lat, lon, alt, info.sunset, rangeKm);
 
         if(reqId !== __summaryReqId) return;
         renderLocalEclipseSummary(lat, lon, alt, info, obstacleSet ?? null);
@@ -1946,7 +1946,7 @@ if(Number.isFinite(lat) && Number.isFinite(lon)){
   const safeAlt = Number.isFinite(alt) ? alt : 0;
   const safeRangeKm = Number.isFinite(rangeKm) ? rangeKm : 200;
 
-  refreshEclipseSummary(lat, lon, safeAlt);
+  refreshEclipseSummary(lat, lon, safeAlt, safeRangeKm);
   refreshMaxVisibilityStatus(lat, lon, safeAlt, safeRangeKm);
 
   setHorizonButtonLoading();
