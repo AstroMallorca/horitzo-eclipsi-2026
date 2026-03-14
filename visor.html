@@ -903,13 +903,10 @@ window.addEventListener("resize", () => {
       if(pm) moonMarks.push({ ...pm, label: `Lluna C1`, color: "rgba(70,160,255,0.95)" });
     }
 
-    if(ECL && ECL.total_begin && ECL.total_begin.time){
-      const pm = moonHorAtAstroTime(ECL.total_begin.time, OBS);
-      if(pm) moonMarks.push({ ...pm, label: `Lluna C2`, color: "rgba(70,160,255,0.95)" });
-    } else if(ECL && ECL.peak && ECL.peak.time){
-      const pm = moonHorAtAstroTime(ECL.peak.time, OBS);
-      if(pm) moonMarks.push({ ...pm, label: `Lluna màxim`, color: "rgba(70,160,255,0.95)" });
-    }
+if(ECL && ECL.peak && ECL.peak.time){
+  const pm = moonHorAtAstroTime(ECL.peak.time, OBS);
+  if(pm) moonMarks.push({ ...pm, label: `Lluna màxim`, color: "rgba(70,160,255,0.95)" });
+}
 
     if(ECL && ECL.peak && ECL.peak.time){
       const ps = sunHorAtAstroTime(ECL.peak.time, OBS);
