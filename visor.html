@@ -832,6 +832,7 @@ function render(sunPts, moonPts, sunAtCenter, sunMarks, moonMarks){
 
   if(sunAtCenter) updateHudFromProfile(sunAtCenter);
   else hud.textContent = "Carregant…";
+}
 
 window.addEventListener("resize", () => {
   if(window.__SUNPTS__ && window.__MOONPTS__ && window.__SUNCENTER__ && window.__SUNMARKS__ && window.__MOONMARKS__){
