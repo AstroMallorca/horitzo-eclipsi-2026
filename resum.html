@@ -130,66 +130,70 @@ window.__INDEX_HORIZON_ENGINE__ = new HorizonEngine({
       backdrop-filter:blur(12px);
     }
 
-    button{
-      appearance:none;
-      background:rgba(255,255,255,.035);
-      color:var(--text);
-      border:1px solid var(--border);
-      padding:12px 14px;
-      border-radius:14px;
-      font-size:15px;
-      font-weight:600;
-      cursor:pointer;
-      transition:
-        transform .14s ease,
-        border-color .18s ease,
-        background .18s ease,
-        box-shadow .18s ease;
-      box-shadow:var(--shadow-soft);
-    }
+button{
+  appearance:none;
+  background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02));
+  color:var(--text);
+  border:1px solid var(--border);
+  padding:13px 14px;
+  border-radius:16px;
+  font-size:15px;
+  font-weight:700;
+  cursor:pointer;
+  transition:
+    transform .14s ease,
+    border-color .18s ease,
+    background .18s ease,
+    box-shadow .18s ease,
+    opacity .18s ease;
+  box-shadow:var(--shadow-soft);
+}
 
-    button:hover{
-      border-color:var(--border-strong);
-      background:rgba(255,255,255,.06);
-    }
+button:hover{
+  border-color:var(--border-strong);
+  background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+}
 
-    button:active{
-      transform:translateY(1px) scale(.995);
-    }
+button:active{
+  transform:translateY(1px) scale(.995);
+}
 
-    button.primary{
-      background:linear-gradient(135deg,var(--accent),var(--accent-2));
-      border-color:transparent;
-      color:#07111f;
-      font-weight:800;
-    }
+button:disabled{
+  opacity:.6;
+  cursor:default;
+}
 
-    .sectionTitle{
-      font-size:15px;
-      font-weight:700;
-      margin:0 0 10px;
-      color:var(--text);
-      display:flex;
-      align-items:center;
-      gap:8px;
-    }
+button.primary{
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  border-color:transparent;
+  color:#07111f;
+  font-weight:800;
+  box-shadow:0 14px 34px rgba(125,211,252,.18);
+}
 
-    .sectionTitle::before{
-      content:"";
-      width:9px;
-      height:9px;
-      border-radius:50%;
-      background:linear-gradient(180deg,var(--accent),var(--accent-2));
-      box-shadow:0 0 14px rgba(125,211,252,.45);
-      flex:0 0 auto;
-    }
+.sectionTitle{
+  font-size:15px;
+  font-weight:800;
+  margin:0 0 12px;
+  color:var(--text);
+  text-align:center;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
 
-    .ctaRow{
-      margin-top:14px;
-      display:flex;
-      flex-direction:column;
-      gap:8px;
-    }
+.sectionTitle::before{
+  content:none;
+}
+
+.ctaRow{
+  margin-top:16px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  max-width:420px;
+  margin-left:auto;
+  margin-right:auto;
+}
 
     .hint{
       color:var(--muted);
@@ -200,14 +204,25 @@ window.__INDEX_HORIZON_ENGINE__ = new HorizonEngine({
 
     .bad{color:var(--bad);}
 
-    #locationInfo{
-      font-size:15px;
-      line-height:1.55;
-    }
+#locationCard{
+  position:relative;
+  overflow:hidden;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.025)),
+    radial-gradient(circle at top center, rgba(125,211,252,.10), transparent 52%);
+}
 
-    #locationInfo b{
-      color:var(--text);
-    }
+#locationInfo{
+  font-size:15px;
+  line-height:1.6;
+  text-align:center;
+  max-width:52ch;
+  margin:0 auto;
+}
+
+#locationInfo b{
+  color:var(--text);
+}
 
     #eclipseInfo{
       font-size:15px;
@@ -225,33 +240,37 @@ window.__INDEX_HORIZON_ENGINE__ = new HorizonEngine({
       margin-bottom:14px;
     }
 
-    .summaryMetric{
-      background:rgba(255,255,255,.035);
-      border:1px solid var(--border);
-      border-radius:14px;
-      padding:12px;
-    }
+.summaryMetric{
+  background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02));
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:13px 12px;
+  box-shadow:var(--shadow-soft);
+}
 
-    .summaryMetricLabel{
-      font-size:11px;
-      text-transform:uppercase;
-      letter-spacing:.08em;
-      color:var(--muted);
-      margin-bottom:6px;
-    }
+.summaryMetricLabel{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.10em;
+  color:var(--muted);
+  margin-bottom:6px;
+  text-align:center;
+}
 
-    .summaryMetricValue{
-      font-size:20px;
-      font-weight:800;
-      line-height:1.1;
-      color:var(--text);
-    }
+.summaryMetricValue{
+  font-size:20px;
+  font-weight:800;
+  line-height:1.08;
+  color:var(--text);
+  text-align:center;
+}
 
-    .summaryMetricSub{
-      margin-top:4px;
-      font-size:12px;
-      color:var(--muted);
-    }
+.summaryMetricSub{
+  margin-top:5px;
+  font-size:12px;
+  color:var(--muted);
+  text-align:center;
+}
 
     .summaryBlock{
       margin-top:14px;
@@ -266,13 +285,14 @@ window.__INDEX_HORIZON_ENGINE__ = new HorizonEngine({
     }
 
 .summaryBlockTitle{
-  font-size:13px;
+  font-size:12px;
   font-weight:800;
   text-transform:uppercase;
-  letter-spacing:.12em;
+  letter-spacing:.14em;
   color:var(--accent);
   margin:0 0 12px;
   text-align:center;
+  opacity:.95;
 }
 
     .summaryList{
