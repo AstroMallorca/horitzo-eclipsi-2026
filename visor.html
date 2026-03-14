@@ -283,15 +283,13 @@ function drawSkyGradient(profile){
 
   ctx.save();
 
-  const grad = ctx.createLinearGradient(0, PLOT.y1, 0, PLOT.y0);
-  grad.addColorStop(0, "#0a1a3a");
-  grad.addColorStop(0.55, "#1b4f8a");
-  grad.addColorStop(1, "#6ea8d9");
+  const grad = ctx.createLinearGradient(0, 0, 0, PLOT.y0);
+  grad.addColorStop(0.00, "#081428");
+  grad.addColorStop(0.45, "#163b68");
+  grad.addColorStop(0.78, "#3f78a8");
+  grad.addColorStop(1.00, "#7fb0d8");
 
-  ctx.beginPath();
-  ctx.moveTo(PLOT.x0, PLOT.y1);
-
-  let started = false;
+  const pts = [];
 
   for(let i = 0; i < alt.length; i++){
     const az = az0 + i * daz;
@@ -300,18 +298,30 @@ function drawSkyGradient(profile){
     const a = alt[i];
     if(!Number.isFinite(a)) continue;
 
-    const x = mapX(az);
-    const y = mapY(a);
-
-    if(!started){
-      ctx.lineTo(x, y);
-      started = true;
-    } else {
-      ctx.lineTo(x, y);
-    }
+    pts.push({
+      x: mapX(az),
+      y: mapY(a)
+    });
   }
 
-  ctx.lineTo(PLOT.x1, PLOT.y1);
+  if(pts.length < 2){
+    ctx.restore();
+    return;
+  }
+
+  const first = pts[0];
+  const last = pts[pts.length - 1];
+
+  ctx.beginPath();
+  ctx.moveTo(first.x, 0);
+  ctx.lineTo(last.x, 0);
+  ctx.lineTo(last.x, last.y);
+
+  for(let i = pts.length - 2; i >= 0; i--){
+    ctx.lineTo(pts[i].x, pts[i].y);
+  }
+
+  ctx.lineTo(first.x, 0);
   ctx.closePath();
 
   ctx.fillStyle = grad;
