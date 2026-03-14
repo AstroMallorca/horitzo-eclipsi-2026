@@ -144,7 +144,70 @@
   .row > button{
     flex:1 1 150px;
   }
+  .visualizerButtons{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:10px;
+  }
 
+  .visualizerButtons > button{
+    flex:none;
+  }
+
+  .visualizerBtn{
+    position:relative;
+    appearance:none;
+    width:100%;
+    min-height:108px;
+    text-align:center;
+    padding:16px 14px;
+    border-radius:16px;
+    border:1px solid var(--border);
+    background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+    color:var(--text);
+    overflow:hidden;
+    isolation:isolate;
+  }
+
+  .visualizerBtn::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background-image:var(--visualizer-bg);
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+    transform:scale(1.08);
+    filter:blur(3px);
+    opacity:.42;
+    z-index:0;
+  }
+
+  .visualizerBtn::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:
+      linear-gradient(180deg, rgba(7,12,24,.30), rgba(7,12,24,.48)),
+      linear-gradient(90deg, rgba(0,0,0,.24) 0%, rgba(0,0,0,.08) 40%, rgba(0,0,0,.24) 100%);
+    z-index:1;
+  }
+
+  .visualizerBtn:hover{
+    border-color:var(--border-strong);
+    transform:translateY(-1px);
+  }
+
+  .visualizerBtnLabel{
+    position:relative;
+    z-index:2;
+    display:block;
+    font-size:24px;
+    font-weight:500;
+    line-height:1.08;
+    letter-spacing:.03em;
+    text-shadow:0 2px 10px rgba(0,0,0,.35);
+  }
   button{
     appearance:none;
     background:rgba(255,255,255,.035);
@@ -932,7 +995,15 @@
       width:100%;
       flex:none;
     }
+    .visualizerBtn{
+      min-height:96px;
+      padding:14px 12px;
+      border-radius:14px;
+    }
 
+    .visualizerBtnLabel{
+      font-size:20px;
+    }
     .hero{
   justify-content:flex-start;
 }
@@ -1023,13 +1094,21 @@
   <div class="sectionTitle">VISUALITZADOR DE L'ECLIPSI</div>
   <div class="sectionSub">Selecciona una localització</div>
 
-  <div class="row">
-    <button id="btnGPS">📍 Ubicació actual</button>
-    <button id="btnManual">✍️ Entrada manual</button>
-    <button id="btnMap">🗺️ Tria al mapa</button>
-  </div>
+<div class="row visualizerButtons">
+  <button id="btnGPS" class="visualizerBtn" style="--visualizer-bg:url('assets/info/active-point.jpg');">
+    <span class="visualizerBtnLabel">Ubicació actual</span>
+  </button>
 
-  <div class="hint" id="status">Tria un mode.</div>
+  <button id="btnManual" class="visualizerBtn" style="--visualizer-bg:url('assets/info/manual-entry.jpg');">
+    <span class="visualizerBtnLabel">Entrada manual</span>
+  </button>
+
+  <button id="btnMap" class="visualizerBtn" style="--visualizer-bg:url('assets/info/map-choice.jpg');">
+    <span class="visualizerBtnLabel">Tria al mapa</span>
+  </button>
+</div>
+
+  <div class="hint" id="status"></div>
 
   <div id="selectedLocationCard" class="card" style="display:none; margin-top:12px;">
     <div class="sectionTitle">LOCALITZACIÓ SELECCIONADA</div>
