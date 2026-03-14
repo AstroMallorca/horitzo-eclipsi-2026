@@ -351,36 +351,65 @@
   }
 
   .infoCardBtn{
+    position:relative;
     appearance:none;
     width:100%;
+    min-height:118px;
     text-align:center;
-    padding:16px 14px;
+    padding:18px 14px;
     border-radius:16px;
     border:1px solid var(--border);
-    background:
-      linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.025));
+    background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
     color:var(--text);
-    font-size:14px;
-    font-weight:800;
-    letter-spacing:.04em;
+    font-size:18px;
+    font-weight:900;
+    letter-spacing:.05em;
     text-transform:uppercase;
     box-shadow:var(--shadow-soft);
+    overflow:hidden;
+    isolation:isolate;
+  }
+
+  .infoCardBtn::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background-image:var(--info-bg);
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+    transform:scale(1.08);
+    filter:blur(3px);
+    opacity:.42;
+    z-index:0;
+  }
+
+  .infoCardBtn::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:
+      linear-gradient(180deg, rgba(7,12,24,.30), rgba(7,12,24,.48)),
+      linear-gradient(90deg, rgba(0,0,0,.24) 0%, rgba(0,0,0,.08) 40%, rgba(0,0,0,.24) 100%);
+    z-index:1;
   }
 
   .infoCardBtn:hover{
     border-color:var(--border-strong);
-    background:
-      linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.035));
+    transform:translateY(-1px);
   }
 
-  .infoCardSub{
+  .infoCardBtn > span,
+  .infoCardBtn > strong,
+  .infoCardBtn{
+    text-shadow:0 2px 10px rgba(0,0,0,.35);
+  }
+
+  .infoCardLabel{
+    position:relative;
+    z-index:2;
     display:block;
-    margin-top:6px;
-    font-size:11px;
-    font-weight:600;
-    letter-spacing:.02em;
-    text-transform:none;
-    color:var(--muted);
+    line-height:1.12;
   }
 
   .infoImageCard{
@@ -426,11 +455,11 @@
       grid-template-columns:1fr;
       gap:10px;
     }
-
     .infoCardBtn{
+      min-height:104px;
       padding:14px 12px;
       border-radius:14px;
-      font-size:13.5px;
+      font-size:16px;
     }
 
     .infoImageCard{
@@ -966,19 +995,28 @@
   <div class="sectionTitle">INFORMACIÓ DELS ECLIPSIS</div>
 
   <div class="infoCards">
-    <button type="button" class="infoCardBtn" id="btnInfoTrio">
-      TRIO D'ECLIPSIS
-      <span class="infoCardSub">Obrir infografia</span>
+    <button
+      type="button"
+      class="infoCardBtn"
+      id="btnInfoTrio"
+      style="--info-bg:url('assets/Info/InfografiaEclipsisRollUp.png');">
+      <span class="infoCardLabel">TRIO D'ECLIPSIS</span>
     </button>
 
-    <button type="button" class="infoCardBtn" id="btnInfo2026">
-      ECLIPSI DEL 2026
-      <span class="infoCardSub">Obrir infografia</span>
+    <button
+      type="button"
+      class="infoCardBtn"
+      id="btnInfo2026"
+      style="--info-bg:url('assets/Info/InfografiaEclipsisMallorcaRollUp.png');">
+      <span class="infoCardLabel">ECLIPSI DEL 2026</span>
     </button>
 
-    <button type="button" class="infoCardBtn" id="btnInfoSeguretat">
-      SEGURETAT
-      <span class="infoCardSub">Obrir infografia</span>
+    <button
+      type="button"
+      class="infoCardBtn"
+      id="btnInfoSeguretat"
+      style="--info-bg:url('assets/Info/InfografiaEclipsisSeguretatRollUp.png');">
+      <span class="infoCardLabel">SEGURETAT</span>
     </button>
   </div>
 </div>
