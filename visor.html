@@ -435,41 +435,44 @@ function drawSunDiscs(marks){
     ctx.arc(x, y, rPx, 0, Math.PI * 2);
     ctx.stroke();
 
-    if(m.label){
-      const isMax = !!m.isMax;
+if(m.label){
+  const isMax = !!m.isMax;
 
-if(isMax){
-  ctx.fillStyle = "#ffffff";
-  ctx.strokeStyle = "transparent";
+  if(isMax){
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = "transparent";
+    ctx.lineWidth = 0;
+  } else {
+    ctx.fillStyle = col;
+    ctx.strokeStyle = "rgba(0,0,0,0.35)";
+    ctx.lineWidth = 4;
+  }
+
+  if(m.labelPos === "top"){
+    ctx.textAlign = "center";
+    const tx = x;
+    const ty = y - rPx - 34;
+
+    if(!isMax) ctx.strokeText(m.label, tx, ty);
+    ctx.fillText(m.label, tx, ty);
+
+  } else if(m.labelPos === "left"){
+    ctx.textAlign = "right";
+    const tx = x - rPx - 26;
+    const ty = y;
+
+    if(!isMax) ctx.strokeText(m.label, tx, ty);
+    ctx.fillText(m.label, tx, ty);
+
+  } else {
+    ctx.textAlign = "left";
+    const tx = x + rPx + 26;
+    const ty = y;
+
+    if(!isMax) ctx.strokeText(m.label, tx, ty);
+    ctx.fillText(m.label, tx, ty);
+  }
 }
-      } else {
-        ctx.fillStyle = col;
-        ctx.strokeStyle = "rgba(0,0,0,0.35)";
-        ctx.lineWidth = 4;
-      }
-
-      if(m.labelPos === "top"){
-        ctx.textAlign = "center";
-        const tx = x;
-        const ty = y - rPx - 34;
-        ctx.strokeText(m.label, tx, ty);
-        ctx.fillText(m.label, tx, ty);
-
-      } else if(m.labelPos === "left"){
-        ctx.textAlign = "right";
-        const tx = x - rPx - 26;
-        const ty = y;
-        ctx.strokeText(m.label, tx, ty);
-        ctx.fillText(m.label, tx, ty);
-
-      } else {
-        ctx.textAlign = "left";
-        const tx = x + rPx + 26;
-        const ty = y;
-        ctx.strokeText(m.label, tx, ty);
-        ctx.fillText(m.label, tx, ty);
-      }
-    }
   }
 
   ctx.restore();
@@ -653,31 +656,55 @@ function drawMoonDiscs(marks){
   if(!legendItems.length) return;
 
   const y = PLOT.y0 + 42;
-  const x0 = PLOT.x0;
-  const gap = 26;
 
   ctx.save();
   ctx.font = "bold 38px system-ui";
   ctx.textBaseline = "top";
+  ctx.textAlign = "center";
   ctx.lineJoin = "round";
 
-  let x = x0;
+  const separator = "     ";
+  const centerX = (PLOT.x0 + PLOT.x1) / 2;
 
   for(const item of legendItems){
     if(item.isMax){
-      ctx.fillStyle = "#000";
-      ctx.strokeStyle = "rgba(255,255,255,0.95)";
-      ctx.lineWidth = 6;
+      item.fill = "#ffffff";
+      item.stroke = "transparent";
+      item.lineWidth = 0;
     } else {
-      ctx.fillStyle = item.color;
-      ctx.strokeStyle = "rgba(0,0,0,0.35)";
-      ctx.lineWidth = 3;
+      item.fill = item.color;
+      item.stroke = "rgba(0,0,0,0.35)";
+      item.lineWidth = 3;
     }
+  }
 
-    ctx.strokeText(item.text, x, y);
-    ctx.fillText(item.text, x, y);
+  let totalWidth = 0;
+  const measured = [];
 
-    x += ctx.measureText(item.text).width + gap;
+  for(let i = 0; i < legendItems.length; i++){
+    const w = ctx.measureText(legendItems[i].text).width;
+    measured.push(w);
+    totalWidth += w;
+  }
+
+  const sepWidth = ctx.measureText(separator).width;
+  totalWidth += sepWidth * (legendItems.length - 1);
+
+  let x = centerX - totalWidth / 2;
+
+  for(let i = 0; i < legendItems.length; i++){
+    const item = legendItems[i];
+    const w = measured[i];
+    const tx = x + w / 2;
+
+    ctx.fillStyle = item.fill;
+    ctx.strokeStyle = item.stroke;
+    ctx.lineWidth = item.lineWidth;
+
+    if(!item.isMax) ctx.strokeText(item.text, tx, y);
+    ctx.fillText(item.text, tx, y);
+
+    x += w + sepWidth;
   }
 
   ctx.restore();
