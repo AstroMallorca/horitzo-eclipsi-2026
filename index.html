@@ -248,24 +248,20 @@
 
   .sectionTitle{
     font-size:15px;
-    font-weight:700;
-    margin:0 0 10px;
+    font-weight:800;
+    margin:0 0 12px;
     color:var(--text);
-    display:flex;
-    align-items:center;
-    gap:8px;
+    text-align:center;
+    letter-spacing:.08em;
+    text-transform:uppercase;
   }
-
-  .sectionTitle::before{
-    content:"";
-    width:9px;
-    height:9px;
-    border-radius:50%;
-    background:linear-gradient(180deg,var(--accent),var(--accent-2));
-    box-shadow:0 0 14px rgba(125,211,252,.45);
-    flex:0 0 auto;
+  .sectionSub{
+    text-align:center;
+    margin:-4px 0 12px;
+    color:var(--muted);
+    font-size:13px;
+    line-height:1.4;
   }
-
   .ctaRow{
     margin-top:14px;
     display:flex;
@@ -966,58 +962,8 @@
   </div>
 </div>
   
-  <div class="card">
-    <div class="sectionTitle">Selecciona una localització</div>
-    <div class="row">
-  <button id="btnGPS">📍 Ubicació actual</button>
-  <button id="btnManual">✍️ Entrada manual</button>
-  <button id="btnMap">🗺️ Tria al mapa</button>
-</div>
-       <div class="hint" id="status">Tria un mode.</div>
-
-    <div id="selectedLocationCard" class="card" style="display:none; margin-top:12px;">
-      <div class="sectionTitle">Localització seleccionada</div>
-      <div id="selectedLocationInfo" class="hint">—</div>
-    </div>
-
-    <div class="sep"></div>
-
-    <div id="manualBox" style="display:none;">
-      <div class="grid2">
-        <div>
-          <label for="lat">Latitud (º)</label>
-          <input id="lat" inputmode="decimal" placeholder="Ex: 39.5733">
-        </div>
-        <div>
-          <label for="lon">Longitud (º)</label>
-          <input id="lon" inputmode="decimal" placeholder="Ex: 2.6564">
-        </div>
-      </div>
-
-      <div class="grid2">
-        <div>
-          <label for="alt">Altura (m)</label>
-          <input id="alt" inputmode="numeric" placeholder="Ex: 16">
-        </div>
-        <div>
-          <label for="rangeKm">Rang orografia (km)</label>
-          <input id="rangeKm" inputmode="numeric" placeholder="Ex: 200" value="200">
-        </div>
-      </div>
-<div style="display:none;">
-  <input id="date" value="2026-08-12">
-  <input id="centerUtc" value="18:30">
-</div>
-
-      <div class="hint">Pots deixar l’altura buida: si no hi és, posarem 0 m.</div>
-    </div>
-
-<div class="ctaRow">
-  <button class="primary" id="btnGo" disabled>Veure resum de l’eclipsi →</button>
-</div>
-</div>
 <div class="card">
-  <div class="sectionTitle">Informació dels eclipsis</div>
+  <div class="sectionTitle">INFORMACIÓ DELS ECLIPSIS</div>
 
   <div class="infoCards">
     <button type="button" class="infoCardBtn" id="btnInfoTrio">
@@ -1034,6 +980,61 @@
       SEGURETAT
       <span class="infoCardSub">Obrir infografia</span>
     </button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="sectionTitle">VISUALITZADOR DE L'ECLIPSI</div>
+  <div class="sectionSub">Selecciona una localització</div>
+
+  <div class="row">
+    <button id="btnGPS">📍 Ubicació actual</button>
+    <button id="btnManual">✍️ Entrada manual</button>
+    <button id="btnMap">🗺️ Tria al mapa</button>
+  </div>
+
+  <div class="hint" id="status">Tria un mode.</div>
+
+  <div id="selectedLocationCard" class="card" style="display:none; margin-top:12px;">
+    <div class="sectionTitle">LOCALITZACIÓ SELECCIONADA</div>
+    <div id="selectedLocationInfo" class="hint">—</div>
+  </div>
+
+  <div class="sep"></div>
+
+  <div id="manualBox" style="display:none;">
+    <div class="grid2">
+      <div>
+        <label for="lat">Latitud (º)</label>
+        <input id="lat" inputmode="decimal" placeholder="Ex: 39.5733">
+      </div>
+      <div>
+        <label for="lon">Longitud (º)</label>
+        <input id="lon" inputmode="decimal" placeholder="Ex: 2.6564">
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div>
+        <label for="alt">Altura (m)</label>
+        <input id="alt" inputmode="numeric" placeholder="Ex: 16">
+      </div>
+      <div>
+        <label for="rangeKm">Rang orografia (km)</label>
+        <input id="rangeKm" inputmode="numeric" placeholder="Ex: 200" value="200">
+      </div>
+    </div>
+
+    <div style="display:none;">
+      <input id="date" value="2026-08-12">
+      <input id="centerUtc" value="18:30">
+    </div>
+
+    <div class="hint">Pots deixar l’altura buida: si no hi és, posarem 0 m.</div>
+  </div>
+
+  <div class="ctaRow">
+    <button class="primary" id="btnGo" disabled>Veure resum de l’eclipsi →</button>
   </div>
 </div>
 
