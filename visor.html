@@ -438,10 +438,10 @@ function drawSunDiscs(marks){
     if(m.label){
       const isMax = !!m.isMax;
 
-      if(isMax){
-        ctx.fillStyle = "#000";
-        ctx.strokeStyle = "rgba(255,255,255,0.95)";
-        ctx.lineWidth = 8;
+if(isMax){
+  ctx.fillStyle = "#ffffff";
+  ctx.strokeStyle = "transparent";
+}
       } else {
         ctx.fillStyle = col;
         ctx.strokeStyle = "rgba(0,0,0,0.35)";
@@ -657,7 +657,7 @@ function drawMoonDiscs(marks){
   const gap = 26;
 
   ctx.save();
-  ctx.font = "bold 22px system-ui";
+  ctx.font = "bold 38px system-ui";
   ctx.textBaseline = "top";
   ctx.lineJoin = "round";
 
