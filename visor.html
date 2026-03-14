@@ -190,7 +190,8 @@ const VIEW = {
   colGrid: "rgba(255,0,180,0.35)",
   colGridBold: "rgba(255,0,180,0.55)",
   colHorizon: "rgba(255,255,255,0.9)",
-  colSunPath: "rgba(255,200,0,0.95)",
+  colSunPath: "rgba(255,210,40,0.45)",
+  colMoonPath: "rgba(70,160,255,0.70)",
   colText: "rgba(255,0,180,0.9)"
 };
 
@@ -207,6 +208,7 @@ let C1_AZ = null;
 let PEAK_AZ = null;
 let SET_AZ = null;
 let SEA_SET_AZ = null;
+let LOCAL_SET_AZ = null;
 
 function resizeCanvas(){
   const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -421,10 +423,10 @@ function drawSunDiscs(marks){
 
   const sunRadiusDeg = 0.266;
   const pxPerDegY = (PLOT.y0 - PLOT.y1) / (VIEW.altMax - VIEW.altMin);
-  const rPx = sunRadiusDeg * pxPerDegY;
+  const rPx = Math.max(3, sunRadiusDeg * pxPerDegY);
 
   ctx.save();
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 1.2;
   ctx.font = "15px system-ui";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
@@ -435,16 +437,17 @@ function drawSunDiscs(marks){
     const x = mapX(m.az);
     const y = mapY(m.alt);
 
-    ctx.strokeStyle = m.color || "rgba(255,255,255,0.9)";
-    ctx.fillStyle = ctx.strokeStyle;
+    const col = m.color || "rgba(255,220,80,0.95)";
+    ctx.strokeStyle = col;
+    ctx.fillStyle = col;
 
     ctx.beginPath();
-    ctx.arc(x, y, Math.max(2, rPx), 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+    ctx.arc(x, y, rPx, 0, Math.PI * 2);
     ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(x, y, rPx, 0, Math.PI * 2);
+    ctx.stroke();
 
     if(m.label){
       ctx.fillText(m.label, x + 10, y);
@@ -530,7 +533,83 @@ function sunHorAtAstroTime(x, obs){
 
   return { az, alt: hor.altitude, time: t };
 }
+function moonHorAtAstroTime(x, obs){
+  const t = toAstroTime(x);
+  if(!t) return null;
 
+  const eq = Astronomy.Equator("Moon", t, obs, true, true);
+  const hor = Astronomy.Horizon(t, obs, eq.ra, eq.dec, "normal");
+
+  let az = hor.azimuth;
+  if(az < 0) az += 360;
+  if(az >= 360) az -= 360;
+
+  return { az, alt: hor.altitude, time: t };
+}
+
+function buildMoonPathBetweenTimes(obs, tStart, tEnd, stepSec = 60){
+  const pts = [];
+  if(!tStart || !tEnd) return pts;
+
+  const d0 = astroTimeToDate(toAstroTime(tStart));
+  const d1 = astroTimeToDate(toAstroTime(tEnd));
+  if(!d0 || !d1) return pts;
+
+  const startMs = d0.getTime();
+  const endMs   = d1.getTime();
+
+  for(let tMs = startMs; tMs <= endMs; tMs += stepSec * 1000){
+    const time = Astronomy.MakeTime(new Date(tMs));
+    const eq = Astronomy.Equator("Moon", time, obs, true, true);
+    const hor = Astronomy.Horizon(time, obs, eq.ra, eq.dec, "normal");
+
+    let az = hor.azimuth;
+    if(az < 0) az += 360;
+    if(az >= 360) az -= 360;
+
+    pts.push({ az, alt: hor.altitude, time });
+  }
+  return pts;
+}
+
+function drawMoonDiscs(marks){
+  if(!marks || !marks.length || !PLOT) return;
+
+  const moonRadiusDeg = 0.2725;
+  const pxPerDegY = (PLOT.y0 - PLOT.y1) / (VIEW.altMax - VIEW.altMin);
+  const rPx = Math.max(3, moonRadiusDeg * pxPerDegY);
+
+  ctx.save();
+  ctx.lineWidth = 1.2;
+  ctx.font = "15px system-ui";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+
+  for(const m of marks){
+    if(!inViewAz(m.az) || !inViewAlt(m.alt)) continue;
+
+    const x = mapX(m.az);
+    const y = mapY(m.alt);
+
+    const col = m.color || "rgba(70,160,255,0.95)";
+    ctx.strokeStyle = col;
+    ctx.fillStyle = col;
+
+    ctx.beginPath();
+    ctx.arc(x, y, rPx, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(x, y, rPx, 0, Math.PI * 2);
+    ctx.stroke();
+
+    if(m.label){
+      ctx.fillText(m.label, x + 10, y);
+    }
+  }
+
+  ctx.restore();
+}
 function buildSunPathBetweenTimes(obs, tStart, tEnd, stepSec = 60){
   const pts = [];
   if(!tStart || !tEnd) return pts;
@@ -611,7 +690,48 @@ function evaluateVisibilityFromProfile(profile, azDeg, altSolDeg){
   const visible = delta > 0;
   return { h_crit: hHor, altSol: altSolDeg, visible, delta };
 }
+function findLocalSetFromProfile(points, profile){
+  if(!points || !points.length || !profile) return null;
 
+  const SUN_R_DEG = 0.266;
+  let prev = null;
+
+  for(const p of points){
+    if(!p || !Number.isFinite(p.az) || !Number.isFinite(p.alt)) continue;
+
+    const hHor = profileAltAtAz(profile, p.az);
+    if(!Number.isFinite(hHor)) continue;
+
+    const cur = {
+      az: p.az,
+      alt: p.alt,
+      time: p.time,
+      delta: (p.alt + SUN_R_DEG) - hHor,
+      hHor
+    };
+
+    if(prev && prev.delta > 0 && cur.delta <= 0){
+      const f = prev.delta / (prev.delta - cur.delta);
+
+      const az = prev.az + f * (cur.az - prev.az);
+      const alt = prev.alt + f * (cur.alt - prev.alt);
+      const hHorInterp = prev.hHor + f * (cur.hHor - prev.hHor);
+
+      let time = null;
+      const d0 = astroTimeToDate(prev.time);
+      const d1 = astroTimeToDate(cur.time);
+      if(d0 && d1){
+        time = Astronomy.MakeTime(new Date(d0.getTime() + f * (d1.getTime() - d0.getTime())));
+      }
+
+      return { az, alt, time, hHor: hHorInterp };
+    }
+
+    prev = cur;
+  }
+
+  return null;
+}
 let __hudReqId = 0;
 async function updateHudFromProfile(sunAtCenter){
   if(!sunAtCenter || !CURRENT_PROFILE) return;
@@ -661,7 +781,7 @@ async function updateHudFromProfile(sunAtCenter){
   }
 }
 
-function render(sunPts, sunAtCenter, marks){
+function render(sunPts, moonPts, sunAtCenter, sunMarks, moonMarks){
   if(!BASE_AZ) return;
 
   const { w:W, h:H } = resizeCanvas();
@@ -675,7 +795,7 @@ function render(sunPts, sunAtCenter, marks){
   const altSpan = VIEW.altMax - VIEW.altMin;
 
   const leftAz  = Number.isFinite(C1_AZ) ? C1_AZ : BASE_AZ.min;
-  const rightAz = Number.isFinite(SEA_SET_AZ) ? SEA_SET_AZ : (Number.isFinite(SET_AZ) ? SET_AZ : BASE_AZ.max);
+  const rightAz = Number.isFinite(LOCAL_SET_AZ) ? LOCAL_SET_AZ : (Number.isFinite(SEA_SET_AZ) ? SEA_SET_AZ : (Number.isFinite(SET_AZ) ? SET_AZ : BASE_AZ.max));
 
   const midAz = (leftAz + rightAz) / 2;
   const marginLayoutAz = 1.0;
@@ -706,15 +826,16 @@ function render(sunPts, sunAtCenter, marks){
   drawSeaLevel();
   drawHorizon(CURRENT_PROFILE_DISPLAY || CURRENT_PROFILE);
   drawSunPath(sunPts, VIEW.colSunPath);
-  drawSunDiscs(marks);
+  drawSunPath(moonPts, VIEW.colMoonPath);
+  drawSunDiscs(sunMarks);
+  drawMoonDiscs(moonMarks);
 
   if(sunAtCenter) updateHudFromProfile(sunAtCenter);
   else hud.textContent = "Carregant…";
-}
 
 window.addEventListener("resize", () => {
-  if(window.__SUNPTS__ && window.__SUNCENTER__ && window.__MARKS__){
-    render(window.__SUNPTS__, window.__SUNCENTER__, window.__MARKS__);
+  if(window.__SUNPTS__ && window.__MOONPTS__ && window.__SUNCENTER__ && window.__SUNMARKS__ && window.__MOONMARKS__){
+    render(window.__SUNPTS__, window.__MOONPTS__, window.__SUNCENTER__, window.__SUNMARKS__, window.__MOONMARKS__);
   }
 });
 
@@ -743,6 +864,8 @@ window.addEventListener("resize", () => {
       sunPts = buildRealSunPath(PARAMS.lat, PARAMS.lon, PARAMS.alt, ymd, hhmm, 240, 240, 60);
     }
 
+    const moonPts = buildMoonPathBetweenTimes(OBS, tStart, tEnd, 60);
+
     const seaSetPt = findSeaLevelSetFromSunPts(sunPts);
     SEA_SET_AZ = (seaSetPt && Number.isFinite(seaSetPt.az)) ? seaSetPt.az : null;
 
@@ -768,21 +891,36 @@ window.addEventListener("resize", () => {
     const sunAtCenter = peakPt || sunPts[Math.floor(sunPts.length / 2)];
     console.log("sunAtCenter", sunAtCenter);
 
-    const marks = [];
+    const sunMarks = [];
+    const moonMarks = [];
 
     if(ECL && ECL.partial_begin && ECL.partial_begin.time){
-      const p = sunHorAtAstroTime(ECL.partial_begin.time, OBS);
-      if(p) marks.push({ ...p, label: `C1 ${fmtHHMM(ECL.partial_begin.time)}`, color: "rgba(255,200,0,0.95)" });
+      const ps = sunHorAtAstroTime(ECL.partial_begin.time, OBS);
+      const pm = moonHorAtAstroTime(ECL.partial_begin.time, OBS);
+
+      if(ps) sunMarks.push({ ...ps, label: `C1 ${fmtHHMM(ECL.partial_begin.time)}`, color: "rgba(255,220,80,0.95)" });
+      if(pm) moonMarks.push({ ...pm, label: `Lluna C1`, color: "rgba(70,160,255,0.95)" });
+    }
+
+    if(ECL && ECL.total_begin && ECL.total_begin.time){
+      const pm = moonHorAtAstroTime(ECL.total_begin.time, OBS);
+      if(pm) moonMarks.push({ ...pm, label: `Lluna C2`, color: "rgba(70,160,255,0.95)" });
+    } else if(ECL && ECL.peak && ECL.peak.time){
+      const pm = moonHorAtAstroTime(ECL.peak.time, OBS);
+      if(pm) moonMarks.push({ ...pm, label: `Lluna màxim`, color: "rgba(70,160,255,0.95)" });
     }
 
     if(ECL && ECL.peak && ECL.peak.time){
-      const p = sunHorAtAstroTime(ECL.peak.time, OBS);
-      if(p) marks.push({ ...p, label: `Màxim ${fmtHHMM(ECL.peak.time)}`, color: "rgba(0,200,255,0.95)" });
+      const ps = sunHorAtAstroTime(ECL.peak.time, OBS);
+      if(ps) sunMarks.push({ ...ps, label: `Màxim ${fmtHHMM(ECL.peak.time)}`, color: "rgba(255,220,80,0.95)" });
     }
 
     if(sunSetTime && sunSetTime.time){
-      const p = sunHorAtAstroTime(sunSetTime.time, OBS);
-      if(p) marks.push({ ...p, label: `Posta ${fmtHHMM(sunSetTime.time)}`, color: "rgba(255,120,120,0.95)" });
+      const ps = sunHorAtAstroTime(sunSetTime.time, OBS);
+      const pm = moonHorAtAstroTime(sunSetTime.time, OBS);
+
+      if(ps) sunMarks.push({ ...ps, label: `Posta mar ${fmtHHMM(sunSetTime.time)}`, color: "rgba(255,150,120,0.95)" });
+      if(pm) moonMarks.push({ ...pm, label: `Lluna posta`, color: "rgba(70,160,255,0.95)" });
     }
 
     C1_AZ = (c1Pt && Number.isFinite(c1Pt.az)) ? c1Pt.az : null;
@@ -807,8 +945,10 @@ window.addEventListener("resize", () => {
     }
 
     window.__SUNPTS__ = sunPts;
+    window.__MOONPTS__ = moonPts;
     window.__SUNCENTER__ = sunAtCenter;
-    window.__MARKS__ = marks;
+    window.__SUNMARKS__ = sunMarks;
+    window.__MOONMARKS__ = moonMarks;
 const cachedProfile = loadVisorProfileFromCache();
 if(cachedProfile){
   CURRENT_PROFILE = {
@@ -823,8 +963,20 @@ if(cachedProfile){
     alt: Array.isArray(cachedProfile.altDisplay) ? cachedProfile.altDisplay : cachedProfile.alt
   };
 
+  const localSetPt = findLocalSetFromProfile(sunPts, CURRENT_PROFILE);
+  LOCAL_SET_AZ = (localSetPt && Number.isFinite(localSetPt.az)) ? localSetPt.az : null;
+  if(localSetPt){
+    sunMarks.push({
+      az: localSetPt.az,
+      alt: localSetPt.alt,
+      time: localSetPt.time,
+      label: `Posta local ${fmtHHMM(localSetPt.time)}`,
+      color: "rgba(255,120,120,0.95)"
+    });
+  }
+
   hud.textContent = "Horitzó precarregat";
-  render(sunPts, sunAtCenter, marks);
+  render(sunPts, moonPts, sunAtCenter, sunMarks, moonMarks);
   return;
 }
     hud.textContent = "Calculant horitzó online…";
@@ -872,16 +1024,28 @@ CURRENT_PROFILE_DISPLAY = {
   alt: smoothProfileForDisplay(CURRENT_PROFILE.alt, 5)
 };
 
+const localSetPt = findLocalSetFromProfile(sunPts, CURRENT_PROFILE);
+LOCAL_SET_AZ = (localSetPt && Number.isFinite(localSetPt.az)) ? localSetPt.az : null;
+if(localSetPt){
+  sunMarks.push({
+    az: localSetPt.az,
+    alt: localSetPt.alt,
+    time: localSetPt.time,
+    label: `Posta local ${fmtHHMM(localSetPt.time)}`,
+    color: "rgba(255,120,120,0.95)"
+  });
+}
+
 hud.textContent = "Horitzó carregat";
-render(sunPts, sunAtCenter, marks);
+render(sunPts, moonPts, sunAtCenter, sunMarks, moonMarks);
 
 } catch(e) {
   console.warn("Error carregant horitzó online", e);
   CURRENT_PROFILE = null;
   CURRENT_PROFILE_DISPLAY = null;
   hud.textContent = `Error horitzó online: ${e.message || e}`;
-  if(window.__SUNPTS__ && window.__SUNCENTER__ && window.__MARKS__){
-    render(window.__SUNPTS__, window.__SUNCENTER__, window.__MARKS__);
+  if(window.__SUNPTS__ && window.__MOONPTS__ && window.__SUNCENTER__ && window.__SUNMARKS__ && window.__MOONMARKS__){
+    render(window.__SUNPTS__, window.__MOONPTS__, window.__SUNCENTER__, window.__SUNMARKS__, window.__MOONMARKS__);
   }
 }
 })();
