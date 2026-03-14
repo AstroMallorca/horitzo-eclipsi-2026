@@ -223,7 +223,27 @@ button.primary{
 #locationInfo b{
   color:var(--text);
 }
+#maxVisibilityStatus{
+  margin-top:12px;
+  font-size:24px;
+  font-weight:900;
+  line-height:1;
+  text-align:center;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
 
+#maxVisibilityStatus.maxVisible{
+  color:#22c55e;
+}
+
+#maxVisibilityStatus.maxNotVisible{
+  color:#ef4444;
+}
+
+#maxVisibilityStatus.maxPartial{
+  color:#f59e0b;
+}
     #eclipseInfo{
       font-size:15px;
       line-height:1.6;
@@ -1753,16 +1773,37 @@ function updateLocationCard(){
 
   let peakDateLocal = "—";
   let peakTimeLocal = "—";
+  let maxStatusText = "MÀXIM NO VISIBLE";
+  let maxStatusClass = "maxNotVisible";
 
   try{
     const obs = new Astronomy.Observer(lat, lon, Number.isFinite(alt) ? alt : 0);
     const date = new Date(Date.UTC(2026, 7, 12, 0, 0, 0));
     const ecl = Astronomy.SearchLocalSolarEclipse(date, obs);
 
-    const peakDateObj = astroToDate(ecl?.peak?.time || null);
+    const peakTime = ecl?.peak?.time || null;
+    const peakDateObj = astroToDate(peakTime);
+
     if(peakDateObj instanceof Date){
       peakDateLocal = fmtMallorcaDateFromDate(peakDateObj);
       peakTimeLocal = fmtMallorcaHmsFromDate(peakDateObj);
+    }
+
+    const hMax = sunHorAtTimeForIndex(peakTime, obs);
+    const maxIsAboveHorizon = !!(hMax && Number.isFinite(hMax.alt) && hMax.alt > 0);
+
+    const hasCentral =
+      !!((ecl?.total_begin && ecl?.total_end) || (ecl?.annular_begin && ecl?.annular_end));
+
+    if(!maxIsAboveHorizon){
+      maxStatusText = "MÀXIM NO VISIBLE";
+      maxStatusClass = "maxNotVisible";
+    }else if(hasCentral){
+      maxStatusText = "MÀXIM VISIBLE";
+      maxStatusClass = "maxVisible";
+    }else{
+      maxStatusText = "VISIÓ PARCIAL";
+      maxStatusClass = "maxPartial";
     }
   }catch(err){
     console.warn("No s'ha pogut calcular la data/hora local del màxim", err);
@@ -1773,6 +1814,7 @@ function updateLocationCard(){
     <div><b>Altitud:</b> ${Math.round(alt)} m</div>
     <div><b>Data:</b> ${peakDateLocal}</div>
     <div><b>Hora del màxim:</b> ${peakTimeLocal}</div>
+    <div id="maxVisibilityStatus" class="${maxStatusClass}">${maxStatusText}</div>
   `;
 }
 
