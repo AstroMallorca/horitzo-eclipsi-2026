@@ -796,11 +796,11 @@ ctx.lineWidth = (off === 0) ? 6 : 3;
     const clamped = Math.max(-60, Math.min(60, rel));
     const angle = (clamped / 60) * 0.95;
 
-    const x0 = centerX + Math.sin(angle) * radius * 0.18;
-    const y0 = baseY - Math.cos(angle) * radius * 0.18;
+const x0 = centerX + Math.sin(angle) * radius * 0.72;
+const y0 = baseY - Math.cos(angle) * radius * 0.72;
 
-    const x1 = centerX + Math.sin(angle) * radius * 0.88;
-    const y1 = baseY - Math.cos(angle) * radius * 0.88;
+const x1 = centerX + Math.sin(angle) * radius;
+const y1 = baseY - Math.cos(angle) * radius;
 
     ctx.shadowColor = "rgba(0,255,120,0.6)";
     ctx.shadowBlur = 12;
