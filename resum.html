@@ -1886,6 +1886,20 @@ async function computeObstacleSunset(lat, lon, alt, seaSetTime, rangeKm){
         eclipseCard.style.display = "none";
       }
     }
+    function getMaxVisibilityPayload(){
+  const el = document.getElementById("maxVisibilityStatus");
+  if(!el) return { text:"", cls:"" };
+
+  const text = (el.textContent || "").trim();
+
+  let cls = "";
+  if(el.classList.contains("maxVisible")) cls = "visible";
+  else if(el.classList.contains("maxNotVisible")) cls = "novisible";
+  else if(el.classList.contains("maxPartial")) cls = "partial";
+
+  return { text, cls };
+}
+
 function updateLocationCard(){
   if(!Number.isFinite(lat) || !Number.isFinite(lon)){
     locationInfo.innerHTML = `<span class="bad">Falten coordenades vàlides a la URL.</span>`;
@@ -1929,16 +1943,22 @@ function updateLocationCard(){
       location.href = url.toString();
     });
 
-    btnOpenHorizon.addEventListener("click", () => {
-      const url = new URL("visor.html", location.href);
-      url.searchParams.set("lat", lat.toFixed(6));
-      url.searchParams.set("lon", lon.toFixed(6));
-      url.searchParams.set("alt", String(Math.round(alt)));
-      url.searchParams.set("rangeKm", String(Math.round(rangeKm)));
-      url.searchParams.set("date", dateStr);
-      url.searchParams.set("centerUtc", centerUtc);
-      location.href = url.toString();
-    });
+btnOpenHorizon.addEventListener("click", () => {
+  const url = new URL("visor.html", location.href);
+  url.searchParams.set("lat", lat.toFixed(6));
+  url.searchParams.set("lon", lon.toFixed(6));
+  url.searchParams.set("alt", String(Math.round(alt)));
+  url.searchParams.set("rangeKm", String(Math.round(rangeKm)));
+  url.searchParams.set("date", dateStr);
+  url.searchParams.set("centerUtc", centerUtc);
+
+  const maxVis = getMaxVisibilityPayload();
+  url.searchParams.set("maxStatusText", maxVis.text);
+  url.searchParams.set("maxStatusClass", maxVis.cls);
+
+  location.href = url.toString();
+});
+
 
     updateLocationCard();
 
