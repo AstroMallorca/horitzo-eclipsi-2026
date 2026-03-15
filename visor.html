@@ -435,44 +435,44 @@ function drawSunDiscs(marks){
     ctx.arc(x, y, rPx, 0, Math.PI * 2);
     ctx.stroke();
 
-if(m.label){
-  const isMax = !!m.isMax;
+    if(m.label){
+      const isMax = !!m.isMax;
 
-  if(isMax){
-    ctx.fillStyle = "#ffffff";
-    ctx.strokeStyle = "transparent";
-    ctx.lineWidth = 0;
-  } else {
-    ctx.fillStyle = col;
-    ctx.strokeStyle = "rgba(0,0,0,0.35)";
-    ctx.lineWidth = 4;
-  }
+      if(isMax){
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "transparent";
+        ctx.lineWidth = 0;
+      } else {
+        ctx.fillStyle = col;
+        ctx.strokeStyle = "rgba(0,0,0,0.35)";
+        ctx.lineWidth = 4;
+      }
 
-  if(m.labelPos === "top"){
-    ctx.textAlign = "center";
-    const tx = x;
-    const ty = y - rPx - 34;
+      if(m.labelPos === "top"){
+        ctx.textAlign = "center";
+        const tx = x;
+        const ty = y - rPx - 34;
 
-    if(!isMax) ctx.strokeText(m.label, tx, ty);
-    ctx.fillText(m.label, tx, ty);
+        if(!isMax) ctx.strokeText(m.label, tx, ty);
+        ctx.fillText(m.label, tx, ty);
 
-  } else if(m.labelPos === "left"){
-    ctx.textAlign = "right";
-    const tx = x - rPx - 26;
-    const ty = y;
+      } else if(m.labelPos === "left"){
+        ctx.textAlign = "right";
+        const tx = x - rPx - 26;
+        const ty = y;
 
-    if(!isMax) ctx.strokeText(m.label, tx, ty);
-    ctx.fillText(m.label, tx, ty);
+        if(!isMax) ctx.strokeText(m.label, tx, ty);
+        ctx.fillText(m.label, tx, ty);
 
-  } else {
-    ctx.textAlign = "left";
-    const tx = x + rPx + 26;
-    const ty = y;
+      } else {
+        ctx.textAlign = "left";
+        const tx = x + rPx + 26;
+        const ty = y;
 
-    if(!isMax) ctx.strokeText(m.label, tx, ty);
-    ctx.fillText(m.label, tx, ty);
-  }
-}
+        if(!isMax) ctx.strokeText(m.label, tx, ty);
+        ctx.fillText(m.label, tx, ty);
+      }
+    }
   }
 
   ctx.restore();
