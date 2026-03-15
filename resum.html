@@ -873,17 +873,29 @@ button.primary{
     const locationInfo = document.getElementById("locationInfo");
     const btnBack = document.getElementById("btnBack");
     const btnOpenHorizon = document.getElementById("btnOpenHorizon");
-    function setHorizonButtonLoading(){
-  btnOpenHorizon.textContent = "Calculant horitzó…";
-  btnOpenHorizon.disabled = true;
+function setHorizonButtonLoading(){
+  HORIZON_READY = false;
+
+  const btn = document.getElementById("btnOpenHorizon");
+  if(btn){
+    btn.textContent = "Calculant horitzó…";
+    btn.disabled = true;
+  }
 }
 
+
 function setHorizonButtonReady(){
-  btnOpenHorizon.textContent = "Veure horitzó →";
-  btnOpenHorizon.disabled = false;
+  HORIZON_READY = true;
+
+  const btn = document.getElementById("btnOpenHorizon");
+  if(btn){
+    btn.textContent = "Veure horitzó →";
+    btn.disabled = false;
+  }
 }
 
     let __summaryReqId = 0;
+    let HORIZON_READY = false;
 
     const params = new URLSearchParams(location.search);
 
@@ -1780,8 +1792,11 @@ async function computeObstacleSunset(lat, lon, alt, seaSetTime, rangeKm){
 
 <div class="ctaRow">
   <button id="btnBack">← Canviar localització</button>
-  <button class="primary" id="btnOpenHorizon">Veure horitzó →</button>
+  <button class="primary" id="btnOpenHorizon" ${HORIZON_READY ? "" : "disabled"}>
+    ${HORIZON_READY ? "Veure horitzó →" : "Calculant horitzó…"}
+  </button>
 </div>
+
         </div>
 
         <div class="summaryHero">
@@ -1948,6 +1963,8 @@ document.addEventListener("click", (e) => {
 
   const horizonBtn = e.target.closest("#btnOpenHorizon");
   if(horizonBtn){
+    if(horizonBtn.disabled || !HORIZON_READY) return;
+
     const url = new URL("visor.html", location.href);
     url.searchParams.set("lat", lat.toFixed(6));
     url.searchParams.set("lon", lon.toFixed(6));
