@@ -1012,38 +1012,20 @@ function updateMaxVisibility(){
   const el = document.getElementById("maxVisibility");
   if(!el) return;
 
+  const statusText = getParam("maxStatusText", "");
+  const statusClass = getParam("maxStatusClass", "");
+
   el.classList.remove("visible", "novisible", "partial");
 
-  if(!CURRENT_PROFILE || !window.__SUNMARKS__){
+  if(!statusText){
     el.textContent = "";
     return;
   }
 
-  const max = window.__SUNMARKS__.find(m => m.isMax);
-  if(!max || !Number.isFinite(max.az) || !Number.isFinite(max.alt)){
-    el.textContent = "";
-    return;
-  }
+  el.textContent = statusText;
 
-  const v = evaluateVisibilityFromProfile(CURRENT_PROFILE, max.az, max.alt);
-  const SUN_R_DEG = 0.266;
-
-  if(v.visible === null || !Number.isFinite(v.delta)){
-    el.textContent = "";
-    return;
-  }
-
-  if(v.delta >= SUN_R_DEG){
-    el.textContent = "MÀXIM VISIBLE";
-    el.classList.add("visible");
-  }
-  else if(v.delta <= -SUN_R_DEG){
-    el.textContent = "MÀXIM NO VISIBLE";
-    el.classList.add("novisible");
-  }
-  else{
-    el.textContent = "VISIÓ PARCIAL";
-    el.classList.add("partial");
+  if(statusClass === "visible" || statusClass === "novisible" || statusClass === "partial"){
+    el.classList.add(statusClass);
   }
 }
 
