@@ -39,6 +39,17 @@
       backdrop-filter:none;
       z-index:10;
     }
+    .bottombar{
+  position:absolute;
+  left:50%;
+  bottom:12px;
+  transform:translateX(-50%);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:10;
+}
+
     .btn{
       appearance:none;
       border:1px solid rgba(255,255,255,.18);
@@ -60,7 +71,12 @@
   <div class="topbar">
     <button class="btn" id="backBtn">← Tornar</button>
   </div>
+
+  <div class="bottombar">
+    <button class="btn" id="compassBtn">Activar brúixola</button>
+  </div>
 </div>
+
 
 <script type="module">
 import { HorizonEngine } from "./data/horizon_engine.js";
@@ -148,6 +164,13 @@ document.getElementById("backBtn").addEventListener("click", () => {
   url.searchParams.set("centerUtc", PARAMS.centerUtc);
   location.href = url.toString();
 });
+document.getElementById("compassBtn").addEventListener("click", async () => {
+  if(COMPASS_ENABLED){
+    disableCompass();
+  } else {
+    await enableCompass();
+  }
+});
 
 const VIEW = {
   azMin: 220,
@@ -178,6 +201,10 @@ let PEAK_AZ = null;
 let SET_AZ = null;
 let SEA_SET_AZ = null;
 let LOCAL_SET_AZ = null;
+let COMPASS_ENABLED = false;
+let DEVICE_HEADING = null;   // graus absoluts 0..360
+let DEVICE_ORIENTATION_ACTIVE = false;
+
 
 function resizeCanvas(){
   const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -202,6 +229,76 @@ function mapY(alt){
 
 function inViewAz(az){ return az >= VIEW.azMin && az <= VIEW.azMax; }
 function inViewAlt(alt){ return alt >= VIEW.altMin && alt <= VIEW.altMax; }
+function normalize360(deg){
+  let x = deg % 360;
+  if(x < 0) x += 360;
+  return x;
+}
+
+function signedAngleDiffDeg(a, b){
+  let d = normalize360(a - b);
+  if(d > 180) d -= 360;
+  return d;
+}
+
+function extractHeadingFromEvent(ev){
+  // iPhone / Safari
+  if(typeof ev.webkitCompassHeading === "number" && Number.isFinite(ev.webkitCompassHeading)){
+    return normalize360(ev.webkitCompassHeading);
+  }
+
+  // Android i altres navegadors
+  if(typeof ev.alpha === "number" && Number.isFinite(ev.alpha)){
+    return normalize360(360 - ev.alpha);
+  }
+
+  return null;
+}
+
+function onDeviceOrientation(ev){
+  const heading = extractHeadingFromEvent(ev);
+  if(Number.isFinite(heading)){
+    DEVICE_HEADING = heading;
+  }
+}
+
+async function enableCompass(){
+  try{
+    if(typeof DeviceOrientationEvent === "undefined"){
+      alert("Aquest dispositiu o navegador no suporta la brúixola.");
+      return;
+    }
+
+    // iPhone/iPad
+    if(typeof DeviceOrientationEvent.requestPermission === "function"){
+      const response = await DeviceOrientationEvent.requestPermission();
+      if(response !== "granted"){
+        alert("Permís de brúixola denegat.");
+        return;
+      }
+    }
+
+    if(!DEVICE_ORIENTATION_ACTIVE){
+      window.addEventListener("deviceorientation", onDeviceOrientation, true);
+      DEVICE_ORIENTATION_ACTIVE = true;
+    }
+
+    COMPASS_ENABLED = true;
+    document.getElementById("compassBtn").textContent = "Desactivar brúixola";
+    render(window.__SUNPTS__, window.__MOONPTS__, window.__SUNCENTER__, window.__SUNMARKS__, window.__MOONMARKS__);
+
+  } catch(err){
+    console.warn("No s'ha pogut activar la brúixola", err);
+    alert("No s'ha pogut activar la brúixola.");
+  }
+}
+
+function disableCompass(){
+  COMPASS_ENABLED = false;
+  DEVICE_HEADING = null;
+  document.getElementById("compassBtn").textContent = "Activar brúixola";
+  render(window.__SUNPTS__, window.__MOONPTS__, window.__SUNCENTER__, window.__SUNMARKS__, window.__MOONMARKS__);
+}
 
 function fillGapsLinear(arr, maxGapSamples = 6){
   const out = arr.slice();
@@ -626,6 +723,90 @@ function drawMoonDiscs(marks){
 
   ctx.restore();
 }
+  function drawCompassOverlay(){
+  if(!COMPASS_ENABLED || !PLOT) return;
+
+  // zona superior del cel
+  const centerX = (PLOT.x0 + PLOT.x1) / 2;
+  const topY = Math.max(30, PLOT.y1 + 14);
+  const baseY = Math.min(PLOT.y0 - 140, topY + 170);
+
+  // radi per a les marques grogues
+  const radius = Math.min((PLOT.x1 - PLOT.x0) * 0.42, 430);
+
+  // usem el màxim com a direcció central de referència
+  const refAz = Number.isFinite(PEAK_AZ) ? PEAK_AZ : ((VIEW.azMin + VIEW.azMax) / 2);
+
+  // marques grogues al voltant del màxim
+  const tickOffsets = [-40, -20, 0, 20, 40];
+
+  ctx.save();
+  ctx.lineCap = "butt";
+
+  for(const off of tickOffsets){
+    const az = normalize360(refAz + off);
+    const angle = (off / 40) * 0.85; // només obertura visual, no semicercle complet
+
+    const x0 = centerX + Math.sin(angle) * radius * 0.72;
+    const y0 = baseY - Math.cos(angle) * radius * 0.72;
+
+    const x1 = centerX + Math.sin(angle) * radius;
+    const y1 = baseY - Math.cos(angle) * radius;
+
+    ctx.strokeStyle = "#ffc107";
+    ctx.lineWidth = (off === 0) ? 10 : 8;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+  }
+
+  // línia verda: orientació real del dispositiu respecte del màxim
+  if(Number.isFinite(DEVICE_HEADING)){
+    const rel = signedAngleDiffDeg(DEVICE_HEADING, refAz);
+
+    // limitam el dibuix a ±60° per no sortir massa
+    const clamped = Math.max(-60, Math.min(60, rel));
+    const angle = (clamped / 60) * 0.95;
+
+    const x0 = centerX + Math.sin(angle) * radius * 0.18;
+    const y0 = baseY - Math.cos(angle) * radius * 0.18;
+
+    const x1 = centerX + Math.sin(angle) * radius * 0.88;
+    const y1 = baseY - Math.cos(angle) * radius * 0.88;
+
+    ctx.strokeStyle = "#17d600";
+    ctx.lineWidth = 14;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+
+    // punta de fletxa
+    const headLen = 26;
+    const headAng = 0.34;
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const ang = Math.atan2(dy, dx);
+
+    ctx.fillStyle = "#17d600";
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(
+      x1 - headLen * Math.cos(ang - headAng),
+      y1 - headLen * Math.sin(ang - headAng)
+    );
+    ctx.lineTo(
+      x1 - headLen * Math.cos(ang + headAng),
+      y1 - headLen * Math.sin(ang + headAng)
+    );
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
 function drawBottomLegend(sunMarks){
   if(!PLOT || !sunMarks || !sunMarks.length) return;
 
@@ -874,7 +1055,9 @@ const rightAz = rightBaseAz + sideMarginAz;
   drawSunPath(moonPts, VIEW.colMoonPath);
   drawSunDiscs(sunMarks);
   drawMoonDiscs(moonMarks);
+  drawCompassOverlay();
   drawBottomLegend(sunMarks);
+
 
   if(sunAtCenter) updateHudFromProfile(sunAtCenter);
 }
