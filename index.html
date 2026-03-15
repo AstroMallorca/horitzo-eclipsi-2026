@@ -1544,27 +1544,38 @@ function initMapIfNeeded(){
     manualBox.style.display = "none";
     hideSelectedLocation();
     statusEl.className = "hint";
-    statusEl.textContent = "Cercant ubicació…";
+    statusEl.textContent = "Cercant ubicació del dispositiu…";
 
     navigator.geolocation.getCurrentPosition(
-      pos => {
-        current.lat = pos.coords.latitude;
-        current.lon = pos.coords.longitude;
-        current.alt = (pos.coords.altitude == null) ? 0 : pos.coords.altitude;
+async pos => {
+  current.lat = pos.coords.latitude;
+  current.lon = pos.coords.longitude;
 
-        saveLastLocation({
-          lat: current.lat,
-          lon: current.lon,
-          alt: current.alt ?? 0,
-          rangeKm: parseNum(rangeEl.value) ?? 200,
-          date: (dateEl.value || "2026-08-12").trim(),
-          centerUtc: (centerUtcEl.value || "18:30").trim()
-        });
+  statusEl.className = "hint";
+  statusEl.textContent = "Ubicació trobada. Calculant altitud del terreny…";
 
-        showSelectedLocation(current.lat, current.lon, current.alt ?? 0);
-        clearStatus();
-        enableGoIfReady();
-      },
+  let resolvedAlt = await fetchElevation(current.lat, current.lon);
+
+  if(!Number.isFinite(resolvedAlt)){
+    resolvedAlt = Number.isFinite(pos.coords.altitude) ? pos.coords.altitude : 0;
+  }
+
+  current.alt = resolvedAlt;
+
+  saveLastLocation({
+    lat: current.lat,
+    lon: current.lon,
+    alt: current.alt ?? 0,
+    rangeKm: parseNum(rangeEl.value) ?? 200,
+    date: (dateEl.value || "2026-08-12").trim(),
+    centerUtc: (centerUtcEl.value || "18:30").trim()
+  });
+
+  showSelectedLocation(current.lat, current.lon, current.alt ?? 0);
+  clearStatus();
+  enableGoIfReady();
+},
+
       err => {
         setStatus("No s'ha pogut obtenir la ubicació. Usa el mode manual.", false);
         enableGoIfReady();
