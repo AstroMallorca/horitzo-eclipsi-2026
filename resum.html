@@ -173,6 +173,12 @@ button.primary{
 #btnOpenHorizon{
   padding: 24px 28px;
   font-size: 2em;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#btnOpenHorizon:not(:disabled){
+  transform: scale(1.05);
+  box-shadow: 0 0 18px rgba(255,255,255,0.25);
 }
 
 .sectionTitle{
