@@ -861,11 +861,6 @@ button.primary{
     <div class="card" id="locationCard">
       <div class="sectionTitle">Localització seleccionada</div>
       <div id="locationInfo" class="hint">Carregant dades de la localització…</div>
-
-      <div class="ctaRow">
-        <button id="btnBack">← Canviar localització</button>
-        <button class="primary" id="btnOpenHorizon">Veure horitzó →</button>
-      </div>
     </div>
 
 <div class="card" id="eclipseCard" style="display:none;">
@@ -1782,9 +1777,15 @@ async function computeObstacleSunset(lat, lon, alt, seaSetTime, rangeKm){
 <div class="momentGrid">
   ${buildOrderedMomentCards(info, hasCentral, obstacleSet)}
 </div>
+
+<div class="ctaRow">
+  <button id="btnBack">← Canviar localització</button>
+  <button class="primary" id="btnOpenHorizon">Veure horitzó →</button>
+</div>
         </div>
 
         <div class="summaryHero">
+
           <div class="summaryMetric">
             <div class="summaryMetricLabel">Tipus d’eclipsi</div>
             <div class="summaryMetricValue">${typeLabel}</div>
@@ -1931,33 +1932,38 @@ function updateLocationCard(){
     <div id="maxVisibilityStatus"></div>
   `;
 }
+document.addEventListener("click", (e) => {
+  const backBtn = e.target.closest("#btnBack");
+  if(backBtn){
+    const url = new URL("index.html", location.href);
+    url.searchParams.set("lat", lat.toFixed(6));
+    url.searchParams.set("lon", lon.toFixed(6));
+    url.searchParams.set("alt", String(Math.round(alt)));
+    url.searchParams.set("rangeKm", String(Math.round(rangeKm)));
+    url.searchParams.set("date", dateStr);
+    url.searchParams.set("centerUtc", centerUtc);
+    location.href = url.toString();
+    return;
+  }
 
-    btnBack.addEventListener("click", () => {
-      const url = new URL("index.html", location.href);
-      url.searchParams.set("lat", lat.toFixed(6));
-      url.searchParams.set("lon", lon.toFixed(6));
-      url.searchParams.set("alt", String(Math.round(alt)));
-      url.searchParams.set("rangeKm", String(Math.round(rangeKm)));
-      url.searchParams.set("date", dateStr);
-      url.searchParams.set("centerUtc", centerUtc);
-      location.href = url.toString();
-    });
+  const horizonBtn = e.target.closest("#btnOpenHorizon");
+  if(horizonBtn){
+    const url = new URL("visor.html", location.href);
+    url.searchParams.set("lat", lat.toFixed(6));
+    url.searchParams.set("lon", lon.toFixed(6));
+    url.searchParams.set("alt", String(Math.round(alt)));
+    url.searchParams.set("rangeKm", String(Math.round(rangeKm)));
+    url.searchParams.set("date", dateStr);
+    url.searchParams.set("centerUtc", centerUtc);
 
-btnOpenHorizon.addEventListener("click", () => {
-  const url = new URL("visor.html", location.href);
-  url.searchParams.set("lat", lat.toFixed(6));
-  url.searchParams.set("lon", lon.toFixed(6));
-  url.searchParams.set("alt", String(Math.round(alt)));
-  url.searchParams.set("rangeKm", String(Math.round(rangeKm)));
-  url.searchParams.set("date", dateStr);
-  url.searchParams.set("centerUtc", centerUtc);
+    const maxVis = getMaxVisibilityPayload();
+    url.searchParams.set("maxStatusText", maxVis.text);
+    url.searchParams.set("maxStatusClass", maxVis.cls);
 
-  const maxVis = getMaxVisibilityPayload();
-  url.searchParams.set("maxStatusText", maxVis.text);
-  url.searchParams.set("maxStatusClass", maxVis.cls);
-
-  location.href = url.toString();
+    location.href = url.toString();
+  }
 });
+
 
 
     updateLocationCard();
