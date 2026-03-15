@@ -42,15 +42,17 @@
 .bottombar{
   position:absolute;
   left:50%;
-  bottom:12px;
+  bottom:10px;
   transform:translateX(-50%);
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  gap:8px;
+  gap:6px;
   z-index:10;
+  width:min(92vw, 560px);
 }
+
 
 .btn{
   appearance:none;
@@ -115,13 +117,15 @@
 }
 
 #compassHelp{
-  max-width:min(320px, 82vw);
+  max-width:min(520px, 92vw);
   font-size:12px;
-  line-height:1.25;
+  line-height:1.2;
   text-align:center;
   color:rgba(255,255,255,0.78);
   text-shadow:0 1px 4px rgba(0,0,0,0.45);
+  margin-top:2px;
 }
+
 .maxVis{
   font-size:22px;
   font-weight:900;
@@ -134,7 +138,7 @@
 
 .maxVis.top{
   position:absolute;
-  top:150px;
+  top:118px;
   left:50%;
   transform:translateX(-50%);
   width:min(92vw, 560px);
@@ -217,8 +221,8 @@
   position:absolute;
   left:0;
   right:0;
-  bottom:0;
-  top:190px;
+  top:118px;
+  bottom:128px;
 }
     #backBtn{
   width:68px;
@@ -279,14 +283,24 @@
     font-weight:400;
     letter-spacing:.01em;
   }
+.maxVis.top{
+  top:104px;
+}
+.bottombar{
+  bottom:8px;
+  gap:4px;
+  width:min(94vw, 560px);
+}
 
-  .maxVis.top{
-    top:126px;
-  }
-
-  #c{
-    top:165px;
-  }
+#compassHelp{
+  max-width:94vw;
+  font-size:11px;
+  line-height:1.16;
+}
+#c{
+  top:108px;
+  bottom:124px;
+}
 }
 
   </style>
