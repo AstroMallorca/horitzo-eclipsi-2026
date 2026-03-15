@@ -751,8 +751,8 @@ function drawMoonDiscs(marks){
 
   // zona superior del cel
   const centerX = (PLOT.x0 + PLOT.x1) / 2;
-  const topY = Math.max(30, PLOT.y1 + 14);
-  const baseY = Math.min(PLOT.y0 - 140, topY + 170);
+const topY = 16;
+const baseY = PLOT.y1 + 95;
 
   // radi per a les marques grogues
   const radius = Math.min((PLOT.x1 - PLOT.x0) * 0.42, 430);
@@ -776,8 +776,12 @@ function drawMoonDiscs(marks){
     const x1 = centerX + Math.sin(angle) * radius;
     const y1 = baseY - Math.cos(angle) * radius;
 
-    ctx.strokeStyle = "#ffc107";
-    ctx.lineWidth = (off === 0) ? 10 : 8;
+   ctx.strokeStyle = (off === 0)
+  ? "rgba(255,220,60,0.95)"
+  : "rgba(255,220,60,0.55)";
+
+ctx.lineWidth = (off === 0) ? 6 : 3;
+
     ctx.beginPath();
     ctx.moveTo(x0, y0);
     ctx.lineTo(x1, y1);
@@ -798,15 +802,18 @@ function drawMoonDiscs(marks){
     const x1 = centerX + Math.sin(angle) * radius * 0.88;
     const y1 = baseY - Math.cos(angle) * radius * 0.88;
 
-    ctx.strokeStyle = "#17d600";
-    ctx.lineWidth = 14;
+    ctx.shadowColor = "rgba(0,255,120,0.6)";
+    ctx.shadowBlur = 12;
+    ctx.strokeStyle = "rgba(0,255,120,0.95)";
+    ctx.lineWidth = 6;
     ctx.beginPath();
     ctx.moveTo(x0, y0);
     ctx.lineTo(x1, y1);
     ctx.stroke();
+    ctx.shadowBlur = 0;
 
     // punta de fletxa
-    const headLen = 26;
+    const headLen = 18;
     const headAng = 0.34;
     const dx = x1 - x0;
     const dy = y1 - y0;
