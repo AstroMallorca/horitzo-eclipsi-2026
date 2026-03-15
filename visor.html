@@ -953,17 +953,9 @@ function toAstroTime(x){
 
 function buildRealSunPath(observerLat, observerLon, observerAltM, dateYMD, centerHHMM, minutesBefore = 120, minutesAfter = 120, stepSec = 60){
   const obs = new Astronomy.Observer(observerLat, observerLon, observerAltM);
-SIM_POINT_29 = buildSimulationPoint(
-  getParam("sim29Date", ""),
-  getParam("sim29Utc", ""),
-  OBS
-);
 
-SIM_POINT_30 = buildSimulationPoint(
-  getParam("sim30Date", ""),
-  getParam("sim30Utc", ""),
-  OBS
-);
+  const centerDate = makeUtcDate(dateYMD, centerHHMM);
+
 
   const centerDate = makeUtcDate(dateYMD, centerHHMM);
   const startMs = centerDate.getTime() - minutesBefore * 60 * 1000;
@@ -1523,6 +1515,17 @@ window.addEventListener("resize", () => {
     const hhmm = parseHHMM(PARAMS.centerUtc) || { hh:18, mm:30 };
 
     const OBS = new Astronomy.Observer(PARAMS.lat, PARAMS.lon, PARAMS.alt);
+    SIM_POINT_29 = buildSimulationPoint(
+  getParam("sim29Date", ""),
+  getParam("sim29Utc", ""),
+  OBS
+);
+
+SIM_POINT_30 = buildSimulationPoint(
+  getParam("sim30Date", ""),
+  getParam("sim30Utc", ""),
+  OBS
+);
 
     const dayStartUTC = new Date(Date.UTC(ymd.y, ymd.mo - 1, ymd.d, 0, 0, 0));
     const ECL = Astronomy.SearchLocalSolarEclipse(dayStartUTC, OBS);
