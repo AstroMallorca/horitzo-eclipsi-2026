@@ -257,10 +257,33 @@ function extractHeadingFromEvent(ev){
 
 function onDeviceOrientation(ev){
   const heading = extractHeadingFromEvent(ev);
-  if(Number.isFinite(heading)){
-    DEVICE_HEADING = heading;
+  if(!Number.isFinite(heading)) return;
+
+  if(Number.isFinite(DEVICE_HEADING)){
+    const diff = Math.abs(signedAngleDiffDeg(heading, DEVICE_HEADING));
+    if(diff < 0.8) return; // ignora canvis molt petits
+  }
+
+  DEVICE_HEADING = heading;
+
+  if(
+    COMPASS_ENABLED &&
+    window.__SUNPTS__ &&
+    window.__MOONPTS__ &&
+    window.__SUNCENTER__ &&
+    window.__SUNMARKS__ &&
+    window.__MOONMARKS__
+  ){
+    render(
+      window.__SUNPTS__,
+      window.__MOONPTS__,
+      window.__SUNCENTER__,
+      window.__SUNMARKS__,
+      window.__MOONMARKS__
+    );
   }
 }
+
 
 async function enableCompass(){
   try{
