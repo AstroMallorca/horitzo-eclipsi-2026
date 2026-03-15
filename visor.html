@@ -626,7 +626,7 @@ function drawMoonDiscs(marks){
 
   ctx.restore();
 }
-  function drawBottomLegend(sunMarks){
+function drawBottomLegend(sunMarks){
   if(!PLOT || !sunMarks || !sunMarks.length) return;
 
   const legendItems = [];
@@ -652,6 +652,39 @@ function drawMoonDiscs(marks){
       text: `${title}: ${hh} · alt ${altTxt} · az ${azTxt}`
     });
   }
+
+  if(!legendItems.length) return;
+
+  const startX = PLOT.x0;
+  const startY = PLOT.y0 + 26;
+  const lineGap = 46;
+
+  ctx.save();
+  ctx.font = "bold 28px system-ui";
+  ctx.textBaseline = "top";
+  ctx.textAlign = "left";
+  ctx.lineJoin = "round";
+
+  for(let i = 0; i < legendItems.length; i++){
+    const item = legendItems[i];
+    const y = startY + i * lineGap;
+
+    if(item.isMax){
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "transparent";
+      ctx.lineWidth = 0;
+    } else {
+      ctx.fillStyle = item.color;
+      ctx.strokeStyle = "rgba(0,0,0,0.35)";
+      ctx.lineWidth = 3;
+    }
+
+    if(!item.isMax) ctx.strokeText(item.text, startX, y);
+    ctx.fillText(item.text, startX, y);
+  }
+
+  ctx.restore();
+}
 
   if(!legendItems.length) return;
 
