@@ -153,21 +153,21 @@
   .visualizerButtons > button{
     flex:none;
   }
+.visualizerBtn{
+  position:relative;
+  appearance:none;
+  width:100%;
+  min-height:72px;
+  text-align:center;
+  padding:10px 12px;
+  border-radius:16px;
+  border:1px solid var(--border);
+  background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  color:var(--text);
+  overflow:hidden;
+  isolation:isolate;
+}
 
-  .visualizerBtn{
-    position:relative;
-    appearance:none;
-    width:100%;
-    min-height:108px;
-    text-align:center;
-    padding:16px 14px;
-    border-radius:16px;
-    border:1px solid var(--border);
-    background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
-    color:var(--text);
-    overflow:hidden;
-    isolation:isolate;
-  }
 
   .visualizerBtn::before{
     content:"";
@@ -198,16 +198,17 @@
     transform:translateY(-1px);
   }
 
-  .visualizerBtnLabel{
-    position:relative;
-    z-index:2;
-    display:block;
-    font-size:24px;
-    font-weight:500;
-    line-height:1.08;
-    letter-spacing:.03em;
-    text-shadow:0 2px 10px rgba(0,0,0,.35);
-  }
+.visualizerBtnLabel{
+  position:relative;
+  z-index:2;
+  display:block;
+  font-size:19px;
+  font-weight:500;
+  line-height:1.08;
+  letter-spacing:.03em;
+  text-shadow:0 2px 10px rgba(0,0,0,.35);
+}
+
   button{
     appearance:none;
     background:rgba(255,255,255,.035);
@@ -413,25 +414,26 @@
     margin-top:14px;
   }
 
-  .infoCardBtn{
-    position:relative;
-    appearance:none;
-    width:100%;
-    min-height:118px;
-    text-align:center;
-    padding:18px 14px;
-    border-radius:16px;
-    border:1px solid var(--border);
-    background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
-    color:var(--text);
-    font-size:38px;
-    font-weight:400;
-    letter-spacing:.05em;
-    text-transform:uppercase;
-    box-shadow:var(--shadow-soft);
-    overflow:hidden;
-    isolation:isolate;
-  }
+.infoCardBtn{
+  position:relative;
+  appearance:none;
+  width:100%;
+  min-height:78px;
+  text-align:center;
+  padding:10px 12px;
+  border-radius:16px;
+  border:1px solid var(--border);
+  background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  color:var(--text);
+  font-size:28px;
+  font-weight:400;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+  box-shadow:var(--shadow-soft);
+  overflow:hidden;
+  isolation:isolate;
+}
+
 
   .infoCardBtn::before{
     content:"";
@@ -516,12 +518,13 @@
     backdrop-filter:blur(8px);
   }
   @media (max-width:640px){
-    .infoCardBtn{
-      min-height:104px;
-      padding:14px 12px;
-      border-radius:14px;
-      font-size:16px;
-    }
+.infoCardBtn{
+  min-height:70px;
+  padding:10px 10px;
+  border-radius:14px;
+  font-size:14px;
+}
+
 
     .infoImageCard{
       width:100%;
@@ -995,15 +998,16 @@
       width:100%;
       flex:none;
     }
-    .visualizerBtn{
-      min-height:96px;
-      padding:14px 12px;
-      border-radius:14px;
-    }
+.visualizerBtn{
+  min-height:64px;
+  padding:10px 10px;
+  border-radius:14px;
+}
 
-    .visualizerBtnLabel{
-      font-size:20px;
-    }
+.visualizerBtnLabel{
+  font-size:17px;
+}
+
     .hero{
   justify-content:flex-start;
 }
