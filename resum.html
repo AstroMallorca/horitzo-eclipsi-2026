@@ -909,6 +909,7 @@ function setHorizonButtonReady(){
 
     let __summaryReqId = 0;
     let HORIZON_READY = false;
+    let LAST_SIMULATION = null;
 
     const params = new URLSearchParams(location.search);
 
@@ -1760,7 +1761,7 @@ async function computeObstacleSunset(lat, lon, alt, seaSetTime, rangeKm){
         eclipseInfo.innerHTML = "—";
         return;
       }
-
+LAST_SIMULATION = info.simulation || null;
       eclipseCard.style.display = "block";
 
       const obsc = Number.isFinite(info.obscuration)
@@ -1863,10 +1864,9 @@ async function computeObstacleSunset(lat, lon, alt, seaSetTime, rangeKm){
 
   <div class="infoPanel">
     <div class="simChoice">
-      <div class="simChoiceTop">
-        <div class="simChoiceDate">29/04/2026</div>
-        ${sim29?.date ? `<button type="button" onclick="applySimulationDate('${sim29Date}','${sim29Hm}')" class="miniBtn">Usar</button>` : ``}
-      </div>
+<div class="simChoiceTop">
+  <div class="simChoiceDate">29/04/2026</div>
+</div>
       <div class="simChoiceData">
         ${sim29?.date ? `${fmtMallorcaHmsFromDate(sim29.date)} · Δalt ${sim29.dAlt >= 0 ? "+" : ""}${sim29.dAlt.toFixed(2)}° · Δaz ${sim29.dAz.toFixed(2)}°` : "No disponible"}
       </div>
@@ -1875,10 +1875,9 @@ async function computeObstacleSunset(lat, lon, alt, seaSetTime, rangeKm){
 
   <div class="infoPanel">
     <div class="simChoice">
-      <div class="simChoiceTop">
-        <div class="simChoiceDate">30/04/2026</div>
-        ${sim30?.date ? `<button type="button" onclick="applySimulationDate('${sim30Date}','${sim30Hm}')" class="miniBtn">Usar</button>` : ``}
-      </div>
+<div class="simChoiceTop">
+  <div class="simChoiceDate">30/04/2026</div>
+</div>
       <div class="simChoiceData">
         ${sim30?.date ? `${fmtMallorcaHmsFromDate(sim30.date)} · Δalt ${sim30.dAlt >= 0 ? "+" : ""}${sim30.dAlt.toFixed(2)}° · Δaz ${sim30.dAz.toFixed(2)}°` : "No disponible"}
       </div>
@@ -1985,11 +1984,21 @@ document.addEventListener("click", (e) => {
     url.searchParams.set("date", dateStr);
     url.searchParams.set("centerUtc", centerUtc);
 
-    const maxVis = getMaxVisibilityPayload();
-    url.searchParams.set("maxStatusText", maxVis.text);
-    url.searchParams.set("maxStatusClass", maxVis.cls);
+const maxVis = getMaxVisibilityPayload();
+url.searchParams.set("maxStatusText", maxVis.text);
+url.searchParams.set("maxStatusClass", maxVis.cls);
 
-    location.href = url.toString();
+if(LAST_SIMULATION?.apr29?.date){
+  url.searchParams.set("sim29Date", LAST_SIMULATION.apr29.date.toISOString().slice(0,10));
+  url.searchParams.set("sim29Utc", LAST_SIMULATION.apr29.date.toISOString().slice(11,16));
+}
+
+if(LAST_SIMULATION?.apr30?.date){
+  url.searchParams.set("sim30Date", LAST_SIMULATION.apr30.date.toISOString().slice(0,10));
+  url.searchParams.set("sim30Utc", LAST_SIMULATION.apr30.date.toISOString().slice(11,16));
+}
+
+location.href = url.toString();
   }
 });
 
