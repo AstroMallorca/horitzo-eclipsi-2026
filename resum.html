@@ -857,7 +857,10 @@ button.primary{
     </div>
   </div>
 </div>
-
+<div class="ctaRow">
+  <button id="btnBack">← Canviar localització</button>
+</div>
+    
     <div class="card" id="locationCard">
       <div class="sectionTitle">Localització seleccionada</div>
       <div id="locationInfo" class="hint">Carregant dades de la localització…</div>
@@ -1791,7 +1794,6 @@ async function computeObstacleSunset(lat, lon, alt, seaSetTime, rangeKm){
 </div>
 
 <div class="ctaRow">
-  <button id="btnBack">← Canviar localització</button>
   <button class="primary" id="btnOpenHorizon" ${HORIZON_READY ? "" : "disabled"}>
     ${HORIZON_READY ? "Veure horitzó →" : "Calculant horitzó…"}
   </button>
