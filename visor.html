@@ -965,29 +965,6 @@ function drawBottomLegend(sunMarks){
       text: `${title}: ${hh} · alt ${altTxt} · az ${azTxt}`
     });
   }
-function updateMaxVisibility(){
-
-  const el = document.getElementById("maxVisibility");
-  if(!el || !window.__SUNMARKS__) return;
-
-  const max = window.__SUNMARKS__.find(m => m.isMax);
-  if(!max) return;
-
-  el.classList.remove("visible","novisible","partial");
-
-  if(max.alt > 0){
-    el.textContent = "MÀXIM VISIBLE";
-    el.classList.add("visible");
-  }
-  else if(max.alt > -2){
-    el.textContent = "VISIÓ PARCIAL";
-    el.classList.add("partial");
-  }
-  else{
-    el.textContent = "MÀXIM NO VISIBLE";
-    el.classList.add("novisible");
-  }
-}
 
   if(!legendItems.length) return;
 
@@ -1021,7 +998,29 @@ function updateMaxVisibility(){
 
   ctx.restore();
 }
+function updateMaxVisibility(){
 
+  const el = document.getElementById("maxVisibility");
+  if(!el || !window.__SUNMARKS__) return;
+
+  const max = window.__SUNMARKS__.find(m => m.isMax);
+  if(!max) return;
+
+  el.classList.remove("visible","novisible","partial");
+
+  if(max.alt > 0){
+    el.textContent = "MÀXIM VISIBLE";
+    el.classList.add("visible");
+  }
+  else if(max.alt > -2){
+    el.textContent = "VISIÓ PARCIAL";
+    el.classList.add("partial");
+  }
+  else{
+    el.textContent = "MÀXIM NO VISIBLE";
+    el.classList.add("novisible");
+  }
+}
 function buildSunPathBetweenTimes(obs, tStart, tEnd, stepSec = 60){
   const pts = [];
   if(!tStart || !tEnd) return pts;
