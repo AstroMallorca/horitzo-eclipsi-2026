@@ -955,11 +955,9 @@ function buildRealSunPath(observerLat, observerLon, observerAltM, dateYMD, cente
   const obs = new Astronomy.Observer(observerLat, observerLon, observerAltM);
 
   const centerDate = makeUtcDate(dateYMD, centerHHMM);
-
-
-  const centerDate = makeUtcDate(dateYMD, centerHHMM);
   const startMs = centerDate.getTime() - minutesBefore * 60 * 1000;
   const endMs   = centerDate.getTime() + minutesAfter * 60 * 1000;
+
 
   const pts = [];
   for(let tMs = startMs; tMs <= endMs; tMs += stepSec * 1000){
