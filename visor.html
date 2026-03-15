@@ -122,6 +122,26 @@
   color:rgba(255,255,255,0.78);
   text-shadow:0 1px 4px rgba(0,0,0,0.45);
 }
+.maxVis{
+  font-size:22px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  text-align:center;
+  margin-bottom:6px;
+}
+
+.maxVis.visible{
+  color:#22c55e;
+}
+
+.maxVis.novisible{
+  color:#ef4444;
+}
+
+.maxVis.partial{
+  color:#f59e0b;
+}
 
   </style>
 
@@ -134,13 +154,19 @@
   <div class="topbar">
     <button class="btn" id="backBtn">← Tornar</button>
   </div>
-
 <div class="bottombar">
-  <button class="btn" id="compassBtn" aria-pressed="false">Brúixola</button>
+
+  <div id="maxVisibility" class="maxVis"></div>
+
+  <button class="btn" id="compassBtn">Brúixola</button>
+
   <div id="compassHelp">
-    Amb la brúixola pot comprovar si té cap obstacle per veure el màxim, sempre que estigui damunt l’horitzó actual.
+    Amb la brúixola pot comprovar si té cap obstacle per veure el màxim,
+    sempre que estigui damunt l’horitzó actual.
   </div>
+
 </div>
+
 </div>
 
 
@@ -939,6 +965,29 @@ function drawBottomLegend(sunMarks){
       text: `${title}: ${hh} · alt ${altTxt} · az ${azTxt}`
     });
   }
+function updateMaxVisibility(){
+
+  const el = document.getElementById("maxVisibility");
+  if(!el || !window.__SUNMARKS__) return;
+
+  const max = window.__SUNMARKS__.find(m => m.isMax);
+  if(!max) return;
+
+  el.classList.remove("visible","novisible","partial");
+
+  if(max.alt > 0){
+    el.textContent = "MÀXIM VISIBLE";
+    el.classList.add("visible");
+  }
+  else if(max.alt > -2){
+    el.textContent = "VISIÓ PARCIAL";
+    el.classList.add("partial");
+  }
+  else{
+    el.textContent = "MÀXIM NO VISIBLE";
+    el.classList.add("novisible");
+  }
+}
 
   if(!legendItems.length) return;
 
@@ -1298,6 +1347,7 @@ if(sunSetTime && sunSetTime.time){
     window.__SUNCENTER__ = sunAtCenter;
     window.__SUNMARKS__ = sunMarks;
     window.__MOONMARKS__ = moonMarks;
+    updateMaxVisibility();
 const cachedProfile = loadVisorProfileFromCache();
 if(cachedProfile){
   CURRENT_PROFILE = {
