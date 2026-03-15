@@ -1209,7 +1209,7 @@ const centerUtcEl = document.getElementById("centerUtc");
   const latEl = document.getElementById("lat");
   const lonEl = document.getElementById("lon");
   const altEl = document.getElementById("alt");
-  const rangeEl = document.getElementById("rangeKm");
+  const rangeEl = document.getElementById("rangeKm") || { value: "200" };
   const selectedLocationCard = document.getElementById("selectedLocationCard");
   const selectedLocationInfo = document.getElementById("selectedLocationInfo");
   
@@ -1581,7 +1581,7 @@ async pos => {
   });
 
   // Validació live dels inputs
-[latEl, lonEl, altEl, rangeEl, dateEl, centerUtcEl].forEach(el => {
+[latEl, lonEl, altEl, dateEl, centerUtcEl].forEach(el => {
   el.addEventListener("input", () => {
     if(chosen === "manual"){
       hideSelectedLocation();
@@ -1607,6 +1607,7 @@ if(v.ok){
     }
   });
 });
+
 
   btnGo.addEventListener("click", () => {
     let lat, lon, alt, rangeKm;
