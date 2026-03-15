@@ -39,27 +39,90 @@
       backdrop-filter:none;
       z-index:10;
     }
-    .bottombar{
+.bottombar{
   position:absolute;
   left:50%;
   bottom:12px;
   transform:translateX(-50%);
   display:flex;
+  flex-direction:column;
   align-items:center;
   justify-content:center;
+  gap:8px;
   z-index:10;
 }
 
-    .btn{
-      appearance:none;
-      border:1px solid rgba(255,255,255,.18);
-      background:transparent;
-      color:#fff;
-      padding:8px 10px;
-      border-radius:10px;
-      font-size:14px;
-      cursor:pointer;
-    }
+.btn{
+  appearance:none;
+  border:1px solid rgba(255,255,255,.18);
+  background:transparent;
+  color:#fff;
+  padding:8px 10px;
+  border-radius:10px;
+  font-size:14px;
+  cursor:pointer;
+}
+
+#compassBtn{
+  width:68px;
+  height:68px;
+  padding:0;
+  border-radius:18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:12px;
+  font-weight:700;
+  text-align:center;
+  line-height:1.1;
+  border:1px solid rgba(255,255,255,.18);
+  background:
+    radial-gradient(circle at center,
+      rgba(0,0,0,0.96) 0%,
+      rgba(0,0,0,0.92) 45%,
+      rgba(0,0,0,0.78) 70%,
+      rgba(0,0,0,0.60) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.06),
+    inset 0 0 18px rgba(255,255,255,0.03),
+    0 4px 18px rgba(0,0,0,0.35);
+  backdrop-filter: blur(6px);
+  transition:
+    background 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease,
+    transform 120ms ease;
+}
+
+#compassBtn:hover{
+  transform:translateY(-1px);
+}
+
+#compassBtn.active{
+  color:#eaffea;
+  border-color: rgba(80,255,140,0.55);
+  background:
+    radial-gradient(circle at center,
+      rgba(0,28,0,0.96) 0%,
+      rgba(0,70,20,0.92) 38%,
+      rgba(0,120,35,0.62) 68%,
+      rgba(0,255,120,0.18) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(180,255,200,0.10),
+    inset 0 0 20px rgba(0,255,120,0.28),
+    0 0 18px rgba(0,255,120,0.18),
+    0 4px 18px rgba(0,0,0,0.35);
+}
+
+#compassHelp{
+  max-width:min(320px, 82vw);
+  font-size:12px;
+  line-height:1.25;
+  text-align:center;
+  color:rgba(255,255,255,0.78);
+  text-shadow:0 1px 4px rgba(0,0,0,0.45);
+}
+
   </style>
 
   <script src="js/astronomy.browser.min.js"></script>
@@ -72,9 +135,12 @@
     <button class="btn" id="backBtn">← Tornar</button>
   </div>
 
-  <div class="bottombar">
-    <button class="btn" id="compassBtn">Activar brúixola</button>
+<div class="bottombar">
+  <button class="btn" id="compassBtn" aria-pressed="false">Brúixola</button>
+  <div id="compassHelp">
+    Amb la brúixola pot comprovar si té cap obstacle per veure el màxim, sempre que estigui damunt l’horitzó actual.
   </div>
+</div>
 </div>
 
 
@@ -306,9 +372,14 @@ async function enableCompass(){
       DEVICE_ORIENTATION_ACTIVE = true;
     }
 
-    COMPASS_ENABLED = true;
-    document.getElementById("compassBtn").textContent = "Desactivar brúixola";
-    render(window.__SUNPTS__, window.__MOONPTS__, window.__SUNCENTER__, window.__SUNMARKS__, window.__MOONMARKS__);
+COMPASS_ENABLED = true;
+
+const compassBtn = document.getElementById("compassBtn");
+compassBtn.textContent = "Brúixola";
+compassBtn.classList.add("active");
+compassBtn.setAttribute("aria-pressed", "true");
+
+render(window.__SUNPTS__, window.__MOONPTS__, window.__SUNCENTER__, window.__SUNMARKS__, window.__MOONMARKS__);
 
   } catch(err){
     console.warn("No s'ha pogut activar la brúixola", err);
@@ -317,10 +388,15 @@ async function enableCompass(){
 }
 
 function disableCompass(){
-  COMPASS_ENABLED = false;
-  DEVICE_HEADING = null;
-  document.getElementById("compassBtn").textContent = "Activar brúixola";
-  render(window.__SUNPTS__, window.__MOONPTS__, window.__SUNCENTER__, window.__SUNMARKS__, window.__MOONMARKS__);
+COMPASS_ENABLED = false;
+DEVICE_HEADING = null;
+
+const compassBtn = document.getElementById("compassBtn");
+compassBtn.textContent = "Brúixola";
+compassBtn.classList.remove("active");
+compassBtn.setAttribute("aria-pressed", "false");
+
+render(window.__SUNPTS__, window.__MOONPTS__, window.__SUNCENTER__, window.__SUNMARKS__, window.__MOONMARKS__);
 }
 
 function fillGapsLinear(arr, maxGapSamples = 6){
