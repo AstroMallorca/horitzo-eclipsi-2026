@@ -153,6 +153,40 @@
 .maxVis.partial{
   color:#f59e0b;
 }
+.header{
+  position:absolute;
+  top:10px;
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:4px;
+  z-index:20;
+  pointer-events:none;
+}
+
+.header .logo{
+  width:42px;
+  height:auto;
+}
+
+.header .title{
+  font-size:18px;
+  font-weight:700;
+  letter-spacing:.03em;
+}
+
+.header .subtitle{
+  font-size:12px;
+  letter-spacing:.08em;
+  opacity:.8;
+}
+.bottomButtons{
+  display:flex;
+  gap:12px;
+  align-items:center;
+}
 
   </style>
 
@@ -161,16 +195,23 @@
 <body>
 <div id="wrap">
   <canvas id="c"></canvas>
+<div class="header">
+  <img src="assets/logo.png" class="logo">
+  <div class="title">Horitzó Eclipsi 2026</div>
+  <div class="subtitle">ASTROMALLORCA</div>
+</div>
 
-  <div class="topbar">
-    <button class="btn" id="backBtn">← Tornar</button>
-  </div>
 <div id="maxVisibility" class="maxVis top"></div>
 
 <div class="bottombar">
-  <button class="btn" id="compassBtn">Brúixola</button>
+
+  <div class="bottomButtons">
+    <button class="btn" id="backBtn">← Tornar</button>
+    <button class="btn" id="compassBtn">Brúixola</button>
+  </div>
 
   <div id="compassHelp">
+
     Amb la brúixola pot comprovar si té cap obstacle per veure el màxim,
     sempre que estigui damunt l’horitzó actual.
   </div>
