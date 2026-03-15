@@ -128,8 +128,19 @@
   text-transform:uppercase;
   letter-spacing:.04em;
   text-align:center;
-  margin-bottom:6px;
+  z-index:10;
+  text-shadow:0 2px 8px rgba(0,0,0,.45);
 }
+
+.maxVis.top{
+  position:absolute;
+  top:72px;
+  left:50%;
+  transform:translateX(-50%);
+  width:min(92vw, 560px);
+  pointer-events:none;
+}
+
 
 .maxVis.visible{
   color:#22c55e;
@@ -154,18 +165,17 @@
   <div class="topbar">
     <button class="btn" id="backBtn">← Tornar</button>
   </div>
+<div id="maxVisibility" class="maxVis top"></div>
+
 <div class="bottombar">
-
-  <div id="maxVisibility" class="maxVis"></div>
-
   <button class="btn" id="compassBtn">Brúixola</button>
 
   <div id="compassHelp">
     Amb la brúixola pot comprovar si té cap obstacle per veure el màxim,
     sempre que estigui damunt l’horitzó actual.
   </div>
-
 </div>
+
 
 </div>
 
@@ -999,28 +1009,44 @@ function drawBottomLegend(sunMarks){
   ctx.restore();
 }
 function updateMaxVisibility(){
-
   const el = document.getElementById("maxVisibility");
-  if(!el || !window.__SUNMARKS__) return;
+  if(!el) return;
+
+  el.classList.remove("visible", "novisible", "partial");
+
+  if(!CURRENT_PROFILE || !window.__SUNMARKS__){
+    el.textContent = "";
+    return;
+  }
 
   const max = window.__SUNMARKS__.find(m => m.isMax);
-  if(!max) return;
+  if(!max || !Number.isFinite(max.az) || !Number.isFinite(max.alt)){
+    el.textContent = "";
+    return;
+  }
 
-  el.classList.remove("visible","novisible","partial");
+  const v = evaluateVisibilityFromProfile(CURRENT_PROFILE, max.az, max.alt);
+  const SUN_R_DEG = 0.266;
 
-  if(max.alt > 0){
+  if(v.visible === null || !Number.isFinite(v.delta)){
+    el.textContent = "";
+    return;
+  }
+
+  if(v.delta >= SUN_R_DEG){
     el.textContent = "MÀXIM VISIBLE";
     el.classList.add("visible");
   }
-  else if(max.alt > -2){
-    el.textContent = "VISIÓ PARCIAL";
-    el.classList.add("partial");
-  }
-  else{
+  else if(v.delta <= -SUN_R_DEG){
     el.textContent = "MÀXIM NO VISIBLE";
     el.classList.add("novisible");
   }
+  else{
+    el.textContent = "VISIÓ PARCIAL";
+    el.classList.add("partial");
+  }
 }
+
 function buildSunPathBetweenTimes(obs, tStart, tEnd, stepSec = 60){
   const pts = [];
   if(!tStart || !tEnd) return pts;
@@ -1211,10 +1237,11 @@ const rightAz = rightBaseAz + sideMarginAz;
   drawMoonDiscs(moonMarks);
   drawCompassOverlay();
   drawBottomLegend(sunMarks);
-
+  updateMaxVisibility();
 
   if(sunAtCenter) updateHudFromProfile(sunAtCenter);
 }
+
 
 window.addEventListener("resize", () => {
   if(window.__SUNPTS__ && window.__MOONPTS__ && window.__SUNCENTER__ && window.__SUNMARKS__ && window.__MOONMARKS__){
@@ -1346,7 +1373,7 @@ if(sunSetTime && sunSetTime.time){
     window.__SUNCENTER__ = sunAtCenter;
     window.__SUNMARKS__ = sunMarks;
     window.__MOONMARKS__ = moonMarks;
-    updateMaxVisibility();
+    
 const cachedProfile = loadVisorProfileFromCache();
 if(cachedProfile){
   CURRENT_PROFILE = {
