@@ -97,7 +97,11 @@ class TerrariumTileCache {
       .replace("{x}", x)
       .replace("{y}", y);
   }
-
+  _readTerrariumPixel(tile, px, py) {
+    const d = tile.imageData.data;
+    const i = (py * 256 + px) * 4;
+    return terrariumHeight(d[i], d[i + 1], d[i + 2]);
+  }
   async _loadTile(z, x, y) {
     const key = this._tileKey(z, x, y);
 
@@ -152,18 +156,33 @@ class TerrariumTileCache {
     const t = lonLatToTileXY(lon, lat, z);
     const tx = Math.floor(t.x);
     const ty = Math.floor(t.y);
-    const px = Math.max(0, Math.min(255, Math.floor((t.x - tx) * 256)));
-    const py = Math.max(0, Math.min(255, Math.floor((t.y - ty) * 256)));
 
-    const skey = this._sampleKey(z, tx, ty, px, py);
+    const fx = (t.x - tx) * 256;
+    const fy = (t.y - ty) * 256;
+
+    const x0 = Math.max(0, Math.min(255, Math.floor(fx)));
+    const y0 = Math.max(0, Math.min(255, Math.floor(fy)));
+    const x1 = Math.max(0, Math.min(255, x0 + 1));
+    const y1 = Math.max(0, Math.min(255, y0 + 1));
+
+    const dx = Math.max(0, Math.min(1, fx - x0));
+    const dy = Math.max(0, Math.min(1, fy - y0));
+
+    const skey = `${z}/${tx}/${ty}:${fx.toFixed(2)},${fy.toFixed(2)}`;
     if (this.sampleCache.has(skey)) {
       return this.sampleCache.get(skey);
     }
 
     const tile = await this._loadTile(z, tx, ty);
-    const d = tile.imageData.data;
-    const i = (py * 256 + px) * 4;
-    const elev = terrariumHeight(d[i], d[i + 1], d[i + 2]);
+
+    const z00 = this._readTerrariumPixel(tile, x0, y0);
+    const z10 = this._readTerrariumPixel(tile, x1, y0);
+    const z01 = this._readTerrariumPixel(tile, x0, y1);
+    const z11 = this._readTerrariumPixel(tile, x1, y1);
+
+    const z0 = z00 * (1 - dx) + z10 * dx;
+    const z1 = z01 * (1 - dx) + z11 * dx;
+    const elev = z0 * (1 - dy) + z1 * dy;
 
     this.sampleCache.set(skey, elev);
     return elev;
@@ -182,8 +201,11 @@ export class HorizonEngine {
 buildDistances(maxDistM) {
   const out = [];
 
-  // molt més detall a prop
-  for (let d = 50; d < 4000; d += 50) out.push(d);
+  // màxim detall molt a prop
+  for (let d = 10; d < 1000; d += 10) out.push(d);
+
+  // encara molt detall fins a 4 km
+  for (let d = 1000; d < 4000; d += 25) out.push(d);
 
   // detall mitjà a distància intermèdia
   for (let d = 4000; d < 20000; d += 200) out.push(d);
