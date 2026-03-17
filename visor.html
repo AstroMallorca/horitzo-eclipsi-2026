@@ -64,56 +64,42 @@
   font-size:14px;
   cursor:pointer;
 }
-
-#compassBtn{
-  width:68px;
-  height:68px;
+.squareBtn{
+  width:72px;
+  height:72px;
   padding:0;
   border-radius:18px;
+
   display:flex;
   align-items:center;
   justify-content:center;
-  font-size:12px;
+
+  font-size:11px;
   font-weight:700;
   text-align:center;
   line-height:1.1;
+
   border:1px solid rgba(255,255,255,.18);
+
   background:
     radial-gradient(circle at center,
       rgba(0,0,0,0.96) 0%,
       rgba(0,0,0,0.92) 45%,
       rgba(0,0,0,0.78) 70%,
       rgba(0,0,0,0.60) 100%);
+
   box-shadow:
     inset 0 0 0 1px rgba(255,255,255,0.06),
     inset 0 0 18px rgba(255,255,255,0.03),
     0 4px 18px rgba(0,0,0,0.35);
+
   backdrop-filter: blur(6px);
+
   transition:
     background 180ms ease,
     box-shadow 180ms ease,
     border-color 180ms ease,
     transform 120ms ease;
-}
-
-#compassBtn:hover{
-  transform:translateY(-1px);
-}
-
-#compassBtn.active{
-  color:#eaffea;
-  border-color: rgba(80,255,140,0.55);
-  background:
-    radial-gradient(circle at center,
-      rgba(0,28,0,0.96) 0%,
-      rgba(0,70,20,0.92) 38%,
-      rgba(0,120,35,0.62) 68%,
-      rgba(0,255,120,0.18) 100%);
-  box-shadow:
-    inset 0 0 0 1px rgba(180,255,200,0.10),
-    inset 0 0 20px rgba(0,255,120,0.28),
-    0 0 18px rgba(0,255,120,0.18),
-    0 4px 18px rgba(0,0,0,0.35);
 }
 
 #compassHelp{
@@ -223,56 +209,6 @@
   top:0;
   bottom:128px;
 }
-    #backBtn{
-  width:68px;
-  height:68px;
-  padding:0;
-  border-radius:18px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:12px;
-  font-weight:700;
-  text-align:center;
-  line-height:1.1;
-  border:1px solid rgba(255,255,255,.18);
-  background:
-    radial-gradient(circle at center,
-      rgba(0,0,0,0.96) 0%,
-      rgba(0,0,0,0.92) 45%,
-      rgba(0,0,0,0.78) 70%,
-      rgba(0,0,0,0.60) 100%);
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.06),
-    inset 0 0 18px rgba(255,255,255,0.03),
-    0 4px 18px rgba(0,0,0,0.35);
-  backdrop-filter: blur(6px);
-}
-    #simBtn{
-  width:78px;
-  height:78px;
-  padding:0;
-  border-radius:18px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:11px;
-  font-weight:700;
-  text-align:center;
-  line-height:1.1;
-  border:1px solid rgba(255,255,255,.18);
-  background:
-    radial-gradient(circle at center,
-      rgba(0,0,0,0.96) 0%,
-      rgba(0,0,0,0.92) 45%,
-      rgba(0,0,0,0.78) 70%,
-      rgba(0,0,0,0.60) 100%);
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.06),
-    inset 0 0 18px rgba(255,255,255,0.03),
-    0 4px 18px rgba(0,0,0,0.35);
-  backdrop-filter: blur(6px);
-}
 
 @media (max-width:640px){
 .hero{
@@ -353,10 +289,15 @@
 <div class="bottombar">
 
 <div class="bottomButtons">
-  <button class="btn" id="backBtn">Resum</button>
-  <button class="btn" id="newLocBtn">Nova<br>localització</button>
-  <button class="btn" id="compassBtn">Brúixola</button>
-  <button class="btn" id="simBtn">Simulació</button>
+  <button class="btn squareBtn" id="backBtn">Resum</button>
+
+  <button class="btn squareBtn" id="newLocBtn">
+    Nova<br>localització
+  </button>
+
+  <button class="btn squareBtn" id="compassBtn">Brúixola</button>
+
+  <button class="btn squareBtn" id="simBtn">Simulació</button>
 </div>
 
   <div id="compassHelp">
