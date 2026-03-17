@@ -1245,7 +1245,7 @@ function drawBottomLegend(sunMarks){
 
     if(!title) continue;
 
-    const hh = m.time ? fmtHHMM(m.time) : "—";
+   const hh = m.time ? fmtLocalHHMMFromDate(astroTimeToDate(m.time)) : "—";
     const altTxt = Number.isFinite(m.alt) ? `${m.alt.toFixed(1)}°` : "—";
     const azTxt  = Number.isFinite(m.az)  ? `${m.az.toFixed(1)}°`  : "—";
 
@@ -1584,7 +1584,7 @@ if(ECL && ECL.partial_begin && ECL.partial_begin.time){
 
   if(ps) sunMarks.push({
     ...ps,
-    label: `Inici ${fmtHHMM(ECL.partial_begin.time)}`,
+    label: `Inici ${fmtLocalHHMMFromDate(astroTimeToDate(ECL.partial_begin.time))}`,
     labelPos: "top",
     color: "rgba(255,220,80,0.95)"
   });
@@ -1601,7 +1601,7 @@ if(ECL && ECL.peak && ECL.peak.time){
   const ps = sunHorAtAstroTime(ECL.peak.time, OBS);
   if(ps) sunMarks.push({
     ...ps,
-    label: `Màxim ${fmtHHMM(ECL.peak.time)}`,
+    label: `Màxim ${fmtLocalHHMMFromDate(astroTimeToDate(ECL.peak.time))}`,
     labelPos: "right",
     color: "rgba(255,220,80,0.95)",
     isMax: true
@@ -1614,7 +1614,7 @@ if(sunSetTime && sunSetTime.time){
 
   if(ps) sunMarks.push({
     ...ps,
-    label: `Posta de sol ${fmtHHMM(sunSetTime.time)}`,
+    label: `Posta de sol ${fmtLocalHHMMFromDate(astroTimeToDate(sunSetTime.time))}`,
     labelPos: "left",
     color: "rgba(255,150,120,0.95)"
   });
@@ -1670,7 +1670,7 @@ if(localSetPt){
     az: localSetPt.az,
     alt: localSetPt.alt,
     time: localSetPt.time,
-    label: `Posta de sol ${fmtHHMM(localSetPt.time)}`,
+    label: `Posta de sol ${fmtLocalHHMMFromDate(astroTimeToDate(localSetPt.time))}`,
     labelPos: "left",
     color: "rgba(255,120,120,0.95)"
   });
