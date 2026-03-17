@@ -354,7 +354,8 @@
 <div class="bottombar">
 
 <div class="bottomButtons">
-  <button class="btn" id="backBtn">← Tornar</button>
+  <button class="btn" id="backBtn">Resum</button>
+  <button class="btn" id="newLocBtn">Nova localització</button>
   <button class="btn" id="compassBtn">Brúixola</button>
   <button class="btn" id="simBtn">Simulació</button>
 </div>
@@ -454,6 +455,11 @@ document.getElementById("backBtn").addEventListener("click", () => {
   url.searchParams.set("rangeKm", String(Math.round(PARAMS.rangeKm)));
   url.searchParams.set("date", PARAMS.date);
   url.searchParams.set("centerUtc", PARAMS.centerUtc);
+  location.href = url.toString();
+});
+  document.getElementById("newLocBtn").addEventListener("click", () => {
+  // torna a la pàgina principal (index)
+  const url = new URL("index.html", location.href);
   location.href = url.toString();
 });
 document.getElementById("compassBtn").addEventListener("click", async () => {
