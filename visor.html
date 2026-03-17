@@ -447,6 +447,22 @@ document.getElementById("simBtn").addEventListener("click", () => {
   else if(SIM_MODE === 1) SIM_MODE = 2;
   else SIM_MODE = 0;
 
+  const simBtn = document.getElementById("simBtn");
+
+  if(SIM_MODE === 0){
+    simBtn.textContent = "Simulació";
+    simBtn.classList.remove("active");
+    simBtn.setAttribute("aria-pressed", "false");
+  }else if(SIM_MODE === 1){
+    simBtn.textContent = "29/4";
+    simBtn.classList.add("active");
+    simBtn.setAttribute("aria-pressed", "true");
+  }else{
+    simBtn.textContent = "30/4";
+    simBtn.classList.add("active");
+    simBtn.setAttribute("aria-pressed", "true");
+  }
+
   render(
     window.__SUNPTS__,
     window.__MOONPTS__,
