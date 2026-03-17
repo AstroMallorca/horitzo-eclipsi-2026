@@ -1250,37 +1250,47 @@ return items
       };
     }
 
-    function findBestSimulationForDate(obs, targetHor, year, monthIndex, day){
-      if(!targetHor || !Number.isFinite(targetHor.alt) || !Number.isFinite(targetHor.az)) return null;
+function findBestSimulationForDate(obs, targetHor, year, monthIndex, day){
+  if(!targetHor || !Number.isFinite(targetHor.alt) || !Number.isFinite(targetHor.az)) return null;
 
-      const startMs = Date.UTC(year, monthIndex, day, 16, 0, 0);
-      const endMs   = Date.UTC(year, monthIndex, day, 21, 0, 0);
+  const startMs = Date.UTC(year, monthIndex, day, 16, 0, 0);
+  const endMs   = Date.UTC(year, monthIndex, day, 21, 0, 0);
 
-      let best = null;
+  let best = null;
 
-      for(let ms = startMs; ms <= endMs; ms += 5000){
-        const d = new Date(ms);
-        const s = sunHorAtDateForIndex(d, obs);
-        if(!s) continue;
+  for(let ms = startMs; ms <= endMs; ms += 5000){
+    const d = new Date(ms);
+    const s = sunHorAtDateForIndex(d, obs);
+    if(!s) continue;
 
-        const dAlt = s.alt - targetHor.alt;
-        const dAz = angleDiffDeg(s.az, targetHor.az);
-        const score = Math.hypot(dAlt, dAz * Math.cos(targetHor.alt * Math.PI / 180));
+    const dAlt = s.alt - targetHor.alt;
+    const dAz = angleDiffDeg(s.az, targetHor.az);
 
-        if(!best || score < best.score){
-          best = {
-            date: d,
-            alt: s.alt,
-            az: s.az,
-            dAlt,
-            dAz,
-            score
-          };
-        }
-      }
+    const absAlt = Math.abs(dAlt);
+    const absAz = Math.abs(dAz);
 
-      return best;
+    if(
+      !best ||
+      absAlt < best.absAlt - 1e-9 ||
+      (
+        Math.abs(absAlt - best.absAlt) < 0.01 &&
+        absAz < best.absAz
+      )
+    ){
+      best = {
+        date: d,
+        alt: s.alt,
+        az: s.az,
+        dAlt,
+        dAz,
+        absAlt,
+        absAz
+      };
     }
+  }
+
+  return best;
+}
 
     function computeSimulationMatches(obs, targetHor){
       if(!obs || !targetHor) return null;
