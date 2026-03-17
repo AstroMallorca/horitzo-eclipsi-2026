@@ -101,7 +101,23 @@
     border-color 180ms ease,
     transform 120ms ease;
 }
+#compassBtn.active{
+  color:#eaffea;
+  border-color: rgba(80,255,140,0.55);
 
+  background:
+    radial-gradient(circle at center,
+      rgba(0,28,0,0.96) 0%,
+      rgba(0,70,20,0.92) 38%,
+      rgba(0,120,35,0.62) 68%,
+      rgba(0,255,120,0.18) 100%);
+
+  box-shadow:
+    inset 0 0 0 1px rgba(180,255,200,0.10),
+    inset 0 0 20px rgba(0,255,120,0.28),
+    0 0 18px rgba(0,255,120,0.18),
+    0 4px 18px rgba(0,0,0,0.35);
+}
 #compassHelp{
   max-width:min(520px, 92vw);
   font-size:12px;
@@ -110,6 +126,23 @@
   color:rgba(255,255,255,0.78);
   text-shadow:0 1px 4px rgba(0,0,0,0.45);
   margin-top:2px;
+}
+    #simBtn.active{
+  color:#eaffea;
+  border-color: rgba(80,255,140,0.55);
+
+  background:
+    radial-gradient(circle at center,
+      rgba(0,28,0,0.96) 0%,
+      rgba(0,70,20,0.92) 38%,
+      rgba(0,120,35,0.62) 68%,
+      rgba(0,255,120,0.18) 100%);
+
+  box-shadow:
+    inset 0 0 0 1px rgba(180,255,200,0.10),
+    inset 0 0 20px rgba(0,255,120,0.28),
+    0 0 18px rgba(0,255,120,0.18),
+    0 4px 18px rgba(0,0,0,0.35);
 }
 .maxVis{
   font-size:22px;
