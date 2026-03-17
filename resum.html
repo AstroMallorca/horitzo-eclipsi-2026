@@ -1785,8 +1785,8 @@ LAST_SIMULATION = info.simulation || null;
       const sim29Date = sim29?.date ? sim29.date.toISOString().slice(0,10) : "2026-04-29";
       const sim30Date = sim30?.date ? sim30.date.toISOString().slice(0,10) : "2026-04-30";
 
-      const sim29Hm = sim29?.date ? sim29.date.toISOString().slice(11,16) : "";
-      const sim30Hm = sim30?.date ? sim30.date.toISOString().slice(11,16) : "";
+const sim29Hm = sim29?.date ? sim29.date.toISOString().slice(11,19) : "";
+const sim30Hm = sim30?.date ? sim30.date.toISOString().slice(11,19) : "";
 
       let obstacleTxt = "Calculant…";
       if (obstacleSet === null) {
