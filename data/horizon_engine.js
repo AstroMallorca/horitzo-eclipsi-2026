@@ -197,15 +197,14 @@ export class HorizonEngine {
     this.tileCache =
       options.tileCache || new TerrariumTileCache(options.tileOptions || {});
   }
-
 buildDistances(maxDistM) {
   const out = [];
 
-  // màxim detall molt a prop
-  for (let d = 10; d < 1000; d += 10) out.push(d);
+  // evitam auto-obstacles falsos més fins que la resolució útil del DEM
+  for (let d = 50; d < 1200; d += 30) out.push(d);
 
-  // encara molt detall fins a 4 km
-  for (let d = 1000; d < 4000; d += 25) out.push(d);
+  // detall curt-mitjà encara bastant fi
+  for (let d = 1200; d < 4000; d += 60) out.push(d);
 
   // detall mitjà a distància intermèdia
   for (let d = 4000; d < 20000; d += 200) out.push(d);
