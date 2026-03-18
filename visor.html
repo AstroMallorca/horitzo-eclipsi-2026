@@ -1008,6 +1008,15 @@ function fmtHHMM(x){
   const d = astroTimeToDate(t);
   return d ? d.toISOString().slice(11,16) : "—";
 }
+  function fmtLocalHHMMFromDate(d){
+  if(!(d instanceof Date)) return "—";
+  return new Intl.DateTimeFormat("ca-ES", {
+    timeZone: "Europe/Madrid",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).format(d);
+}
 function buildSimulationPoint(dateStr, hhmmUtc, obs){
   if(!dateStr || !hhmmUtc || !obs) return null;
 
