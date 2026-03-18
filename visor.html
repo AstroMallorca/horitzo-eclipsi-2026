@@ -9,12 +9,15 @@
   <link rel="icon" href="data:,">
 
   <style>
-    body{
-      margin:0;
-      background:#000;
-      color:#fff;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-    }
+body{
+  margin:0;
+  color:#fff;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  background:
+    radial-gradient(circle at top center, rgba(125,211,252,.10), transparent 24%),
+    radial-gradient(circle at 20% 10%, rgba(167,139,250,.10), transparent 20%),
+    linear-gradient(180deg, #050816 0%, #0a1124 100%);
+}
     #wrap{
       position:relative;
       width:100vw;
@@ -1554,7 +1557,10 @@ function render(sunPts, moonPts, sunAtCenter, sunMarks, moonMarks){
   const { w:W, h:H } = resizeCanvas();
   ctx.clearRect(0, 0, W, H);
 
-  ctx.fillStyle = "#111";
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, "#050816");
+  bgGrad.addColorStop(1, "#0a1124");
+  ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
 
   const availW = W - VIEW.padding.l - VIEW.padding.r;
