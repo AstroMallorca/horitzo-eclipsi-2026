@@ -1159,6 +1159,7 @@ const baseY = PLOT.y1 + 95;
   ctx.save();
   ctx.lineCap = "butt";
 
+  for(const off of tickOffsets){
     const az = normalize360(refAz + off);
     const angle = (off / 40) * 0.85; // només obertura visual, no semicercle complet
 
