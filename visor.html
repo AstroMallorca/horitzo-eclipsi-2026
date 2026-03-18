@@ -1194,54 +1194,39 @@ const y1 = baseY - Math.cos(angle) * outerR;
     ctx.stroke();
   }
 
-  // línia verda: orientació real del dispositiu respecte del màxim
-  if(Number.isFinite(DEVICE_HEADING)){
+  // fletxa verda: orientació real del dispositiu respecte del màxim
+  if(Number.isFinite(DEVICE_HEADING) && compassArrowImg.complete){
     const rel = signedAngleDiffDeg(DEVICE_HEADING, refAz);
 
     // limitam el dibuix a ±60° per no sortir massa
     const clamped = Math.max(-60, Math.min(60, rel));
     const angle = (clamped / 60) * 0.95;
 
-const x0 = centerX + Math.sin(angle) * radius * 0.72;
-const y0 = baseY - Math.cos(angle) * radius * 0.72;
+    const x1 = centerX + Math.sin(angle) * radius;
+    const y1 = baseY - Math.cos(angle) * radius;
 
-const x1 = centerX + Math.sin(angle) * radius;
-const y1 = baseY - Math.cos(angle) * radius;
+    const arrowW = 26;
+    const arrowH = 34;
 
-    ctx.shadowColor = "rgba(0,255,120,0.6)";
+    ctx.save();
+    ctx.translate(x1, y1);
+
+    // ajusta aquest valor si la fletxa surt girada
+    ctx.rotate(angle);
+
+    ctx.shadowColor = "rgba(0,255,120,0.55)";
     ctx.shadowBlur = 12;
-    ctx.strokeStyle = "rgba(0,255,120,0.95)";
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.moveTo(x0, y0);
-    ctx.lineTo(x1, y1);
-    ctx.stroke();
-    ctx.shadowBlur = 0;
 
-    // punta de fletxa
-    const headLen = 18;
-    const headAng = 0.34;
-    const dx = x1 - x0;
-    const dy = y1 - y0;
-    const ang = Math.atan2(dy, dx);
+    ctx.drawImage(
+      compassArrowImg,
+      -arrowW / 2,
+      -arrowH,
+      arrowW,
+      arrowH
+    );
 
-    ctx.fillStyle = "#17d600";
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(
-      x1 - headLen * Math.cos(ang - headAng),
-      y1 - headLen * Math.sin(ang - headAng)
-    );
-    ctx.lineTo(
-      x1 - headLen * Math.cos(ang + headAng),
-      y1 - headLen * Math.sin(ang + headAng)
-    );
-    ctx.closePath();
-    ctx.fill();
+    ctx.restore();
   }
-
-  ctx.restore();
-}
 
 function drawBottomLegend(sunMarks){
   if(!PLOT || !sunMarks || !sunMarks.length) return;
