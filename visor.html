@@ -1008,14 +1008,23 @@ function fmtHHMM(x){
   const d = astroTimeToDate(t);
   return d ? d.toISOString().slice(11,16) : "—";
 }
-function fmtLocalHHMMFromDate(d){
-  if(!(d instanceof Date)) return "—";
-  return new Intl.DateTimeFormat("ca-ES", {
-    timeZone: "Europe/Madrid",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  }).format(d);
+function buildSimulationPoint(dateStr, hhmmUtc, obs){
+  if(!dateStr || !hhmmUtc || !obs) return null;
+
+  const ymd = parseDateYMD(dateStr);
+  const hm = parseHHMM(hhmmUtc);
+  if(!ymd || !hm) return null;
+
+  const d = makeUtcDate(ymd, hm);
+  const t = Astronomy.MakeTime(d);
+  const s = sunHorAtAstroTime(t, obs);
+  if(!s) return null;
+
+  return {
+    ...s,
+    date: d,
+    label: `Sim ${fmtLocalHHMMFromDate(d)}`
+  };
 }
 
 function findBestSimulationForDateByApparentHeight(obs, profile, targetPoint, year, monthIndex, day){
