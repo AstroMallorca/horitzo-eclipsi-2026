@@ -1147,33 +1147,44 @@ function drawMoonDiscs(marks){
 const topY = 16;
 const baseY = PLOT.y1 + 95;
 
-  // radi per a les marques grogues
+  // radi base per a les marques grogues
   const radius = Math.min((PLOT.x1 - PLOT.x0) * 0.42, 430);
 
   // usem el màxim com a direcció central de referència
   const refAz = Number.isFinite(PEAK_AZ) ? PEAK_AZ : ((VIEW.azMin + VIEW.azMax) / 2);
 
-  // marques grogues al voltant del màxim
-  const tickOffsets = [-40, -20, 0, 20, 40];
+  // marques cada 10°, amb principals cada 20°
+  const tickOffsets = [-40, -30, -20, -10, 0, 10, 20, 30, 40];
 
   ctx.save();
   ctx.lineCap = "butt";
 
-  for(const off of tickOffsets){
     const az = normalize360(refAz + off);
     const angle = (off / 40) * 0.85; // només obertura visual, no semicercle complet
 
-    const x0 = centerX + Math.sin(angle) * radius * 0.72;
-    const y0 = baseY - Math.cos(angle) * radius * 0.72;
+    const isMainTick = (off % 20 === 0);
+    const isCenterTick = (off === 0);
 
-    const x1 = centerX + Math.sin(angle) * radius;
-    const y1 = baseY - Math.cos(angle) * radius;
+    // línies molt més curtes que abans
+    const outerR = radius * 0.50;
 
-   ctx.strokeStyle = (off === 0)
-  ? "rgba(255,220,60,0.95)"
-  : "rgba(255,220,60,0.55)";
+    // principals: longitud curta
+    // subdivisions: la meitat de curtes que la principal
+    const innerR = isMainTick ? (outerR - radius * 0.10) : (outerR - radius * 0.05);
 
-ctx.lineWidth = (off === 0) ? 6 : 3;
+    const x0 = centerX + Math.sin(angle) * innerR;
+    const y0 = baseY - Math.cos(angle) * innerR;
+
+    const x1 = centerX + Math.sin(angle) * outerR;
+    const y1 = baseY - Math.cos(angle) * outerR;
+
+    ctx.strokeStyle = isCenterTick
+      ? "rgba(255,220,60,0.95)"
+      : isMainTick
+        ? "rgba(255,220,60,0.70)"
+        : "rgba(255,220,60,0.42)";
+
+    ctx.lineWidth = isCenterTick ? 4 : (isMainTick ? 2.2 : 1.4);
 
     ctx.beginPath();
     ctx.moveTo(x0, y0);
