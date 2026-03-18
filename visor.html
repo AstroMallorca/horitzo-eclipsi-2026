@@ -1756,10 +1756,6 @@ if(localSetPt){
   return;
 }
 
-  render(sunPts, moonPts, sunAtCenter, sunMarks, moonMarks);
-  return;
-}
-
     const fallbackMin = 260.0;
     const fallbackMax = 300.0;
     const margin = 1.0;
@@ -1802,22 +1798,24 @@ CURRENT_PROFILE_DISPLAY = {
   alt: smoothProfileForDisplay(CURRENT_PROFILE.alt, 5)
 };
 
-const localSetPt = findLocalSetFromProfile(sunPts, CURRENT_PROFILE);
-LOCAL_SET_AZ = (localSetPt && Number.isFinite(localSetPt.az)) ? localSetPt.az : null;
+  const localSetPt = findLocalSetFromProfile(sunPts, CURRENT_PROFILE);
+  LOCAL_SET_AZ = (localSetPt && Number.isFinite(localSetPt.az)) ? localSetPt.az : null;
 if(localSetPt){
   sunMarks.push({
     az: localSetPt.az,
     alt: localSetPt.alt,
     time: localSetPt.time,
-    label: `Posta de sol ${fmtHHMM(localSetPt.time)}`,
+    label: `Posta de sol ${fmtLocalHHMMFromDate(astroTimeToDate(localSetPt.time))}`,
     labelPos: "left",
     color: "rgba(255,120,120,0.95)"
   });
 }
 
-rebuildSimulationPointsForApparentHeight(OBS, peakPt || sunAtCenter, CURRENT_PROFILE);
+  rebuildSimulationPointsForApparentHeight(OBS, peakPt || sunAtCenter, CURRENT_PROFILE);
 
-render(sunPts, moonPts, sunAtCenter, sunMarks, moonMarks);
+  render(sunPts, moonPts, sunAtCenter, sunMarks, moonMarks);
+  return;
+}
 
 } catch(e) {
   console.warn("Error carregant horitzó online", e);
