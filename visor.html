@@ -119,13 +119,7 @@
     0 4px 18px rgba(0,0,0,0.35);
 }
 #compassHelp{
-  max-width:min(520px, 92vw);
-  font-size:12px;
-  line-height:1.2;
-  text-align:center;
-  color:rgba(255,255,255,0.78);
-  text-shadow:0 1px 4px rgba(0,0,0,0.45);
-  margin-top:2px;
+  display:none;
 }
     #simLegend{
   min-height:16px;
@@ -349,11 +343,7 @@
   <button class="btn squareBtn" id="simBtn">Simulació</button>
 </div>
 
-  <div id="compassHelp">
-
-    Amb la brúixola pot comprovar si té cap obstacle per veure el màxim,
-    sempre que estigui damunt l’horitzó actual.
-  </div>
+  <div id="compassHelp"></div>
 </div>
 
 
@@ -1413,18 +1403,23 @@ function updateSimulationLegend(){
   if(!el) return;
 
   const simPoint = getActiveSimulationPoint();
-  if(!simPoint || SIM_MODE === 0){
-    el.textContent = "";
+
+  if(simPoint && SIM_MODE !== 0){
+    let dateText = "";
+    if(SIM_MODE === 1) dateText = "29 D'ABRIL";
+    else if(SIM_MODE === 2) dateText = "30 D'ABRIL";
+
+    const hh = simPoint.date ? fmtLocalHHMMFromDate(simPoint.date) : "—";
+    el.textContent = `SIMULACIÓ DEL DIA ${dateText} A LES ${hh}`;
     return;
   }
 
-  let dateText = "";
-  if(SIM_MODE === 1) dateText = "29 D'ABRIL";
-  else if(SIM_MODE === 2) dateText = "30 D'ABRIL";
+  if(COMPASS_ENABLED){
+    el.textContent = "SI EL MÀXIM ES VISIBLE DESDE EL TEU PUNT D’OBSERVACIÓ, AMB LA BRÚIXOLA COMPROVA SI TENS OBSTACLES COM EDIFICIS O VEGETACIÓ";
+    return;
+  }
 
-  const hh = simPoint.date ? fmtLocalHHMMFromDate(simPoint.date) : "—";
-
-  el.textContent = `SIMULACIÓ DEL DIA ${dateText} A LES ${hh}`;
+  el.textContent = "";
 }
 function buildSunPathBetweenTimes(obs, tStart, tEnd, stepSec = 60){
   const pts = [];
