@@ -1018,23 +1018,72 @@ function fmtLocalHHMMFromDate(d){
   }).format(d);
 }
 
-function buildSimulationPoint(dateStr, hhmmUtc, obs){
-  if(!dateStr || !hhmmUtc || !obs) return null;
+function findBestSimulationForDateByApparentHeight(obs, profile, targetPoint, year, monthIndex, day){
+  if(!obs || !profile || !targetPoint) return null;
+  if(!Number.isFinite(targetPoint.az) || !Number.isFinite(targetPoint.alt)) return null;
 
-  const ymd = parseDateYMD(dateStr);
-  const hm = parseHHMM(hhmmUtc);
-  if(!ymd || !hm) return null;
+  const targetEval = evaluateVisibilityFromProfile(profile, targetPoint.az, targetPoint.alt);
+  if(!Number.isFinite(targetEval.delta)) return null;
 
-  const d = makeUtcDate(ymd, hm);
-  const t = Astronomy.MakeTime(d);
-  const s = sunHorAtAstroTime(t, obs);
-  if(!s) return null;
+  const startMs = Date.UTC(year, monthIndex, day, 16, 0, 0);
+  const endMs   = Date.UTC(year, monthIndex, day, 21, 0, 0);
 
-  return {
-    ...s,
-    date: d,
-    label: `Sim ${fmtLocalHHMMFromDate(d)}`
-  };
+  let best = null;
+
+  for(let ms = startMs; ms <= endMs; ms += 5000){
+    const d = new Date(ms);
+    const t = Astronomy.MakeTime(d);
+    const s = sunHorAtAstroTime(t, obs);
+    if(!s) continue;
+
+    const ev = evaluateVisibilityFromProfile(profile, s.az, s.alt);
+    if(!Number.isFinite(ev.delta)) continue;
+
+    const dApp = ev.delta - targetEval.delta;
+    const absApp = Math.abs(dApp);
+
+    const dAz = Math.abs(signedAngleDiffDeg(s.az, targetPoint.az));
+    const dAlt = s.alt - targetPoint.alt;
+    const absAlt = Math.abs(dAlt);
+
+    if(
+      !best ||
+      absApp < best.absApp - 1e-9 ||
+      (
+        Math.abs(absApp - best.absApp) < 0.01 &&
+        dAz < best.absAz - 1e-9
+      ) ||
+      (
+        Math.abs(absApp - best.absApp) < 0.01 &&
+        Math.abs(dAz - best.absAz) < 0.01 &&
+        absAlt < best.absAlt
+      )
+    ){
+      best = {
+        ...s,
+        date: d,
+        label: `Sim ${fmtLocalHHMMFromDate(d)}`,
+        dApp,
+        absApp,
+        dAz,
+        absAz: dAz,
+        dAlt,
+        absAlt
+      };
+    }
+  }
+
+  return best;
+}
+
+function rebuildSimulationPointsForApparentHeight(obs, targetPoint, profile){
+  if(!obs || !targetPoint || !profile) return;
+
+  const sim29 = findBestSimulationForDateByApparentHeight(obs, profile, targetPoint, 2026, 3, 29);
+  const sim30 = findBestSimulationForDateByApparentHeight(obs, profile, targetPoint, 2026, 3, 30);
+
+  if(sim29) SIM_POINT_29 = sim29;
+  if(sim30) SIM_POINT_30 = sim30;
 }
 
 function getActiveSimulationPoint(){
@@ -1688,7 +1737,6 @@ if(cachedProfile){
     daz: cachedProfile.daz,
     alt: Array.isArray(cachedProfile.altDisplay) ? cachedProfile.altDisplay : cachedProfile.alt
   };
-
   const localSetPt = findLocalSetFromProfile(sunPts, CURRENT_PROFILE);
   LOCAL_SET_AZ = (localSetPt && Number.isFinite(localSetPt.az)) ? localSetPt.az : null;
 if(localSetPt){
@@ -1700,6 +1748,12 @@ if(localSetPt){
     labelPos: "left",
     color: "rgba(255,120,120,0.95)"
   });
+}
+
+  rebuildSimulationPointsForApparentHeight(OBS, peakPt || sunAtCenter, CURRENT_PROFILE);
+
+  render(sunPts, moonPts, sunAtCenter, sunMarks, moonMarks);
+  return;
 }
 
   render(sunPts, moonPts, sunAtCenter, sunMarks, moonMarks);
@@ -1760,6 +1814,9 @@ if(localSetPt){
     color: "rgba(255,120,120,0.95)"
   });
 }
+
+rebuildSimulationPointsForApparentHeight(OBS, peakPt || sunAtCenter, CURRENT_PROFILE);
+
 render(sunPts, moonPts, sunAtCenter, sunMarks, moonMarks);
 
 } catch(e) {
