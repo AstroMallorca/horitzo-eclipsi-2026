@@ -1162,22 +1162,23 @@ const baseY = PLOT.y1 + 95;
   for(const off of tickOffsets){
     const az = normalize360(refAz + off);
     const angle = (off / 40) * 0.85; // només obertura visual, no semicercle complet
+const isMainTick = (off % 20 === 0);
+const isCenterTick = (off === 0);
 
-    const isMainTick = (off % 20 === 0);
-    const isCenterTick = (off === 0);
+// l’extrem exterior ha de coincidir amb el de la línia verda
+const outerR = radius;
 
-    // línies molt més curtes que abans
-    const outerR = radius * 0.50;
+// línies curtes cap a dins
+// principals: curtes
+// subdivisions: la meitat de curtes que la principal
+const tickLen = isMainTick ? (radius * 0.10) : (radius * 0.05);
+const innerR = outerR - tickLen;
 
-    // principals: longitud curta
-    // subdivisions: la meitat de curtes que la principal
-    const innerR = isMainTick ? (outerR - radius * 0.10) : (outerR - radius * 0.05);
+const x0 = centerX + Math.sin(angle) * innerR;
+const y0 = baseY - Math.cos(angle) * innerR;
 
-    const x0 = centerX + Math.sin(angle) * innerR;
-    const y0 = baseY - Math.cos(angle) * innerR;
-
-    const x1 = centerX + Math.sin(angle) * outerR;
-    const y1 = baseY - Math.cos(angle) * outerR;
+const x1 = centerX + Math.sin(angle) * outerR;
+const y1 = baseY - Math.cos(angle) * outerR;
 
     ctx.strokeStyle = isCenterTick
       ? "rgba(255,220,60,0.95)"
