@@ -1841,62 +1841,6 @@ const sim30Hm = sim30?.date ? sim30.date.toISOString().slice(11,19) : "";
             <div class="summaryMetricSub">Azimut ${azMax}</div>
           </div>
         </div>
-<div class="summaryBlock">
-  <div class="summaryBlockTitle">Posta de sol</div>
-
-  <div class="infoPanel">
-    <div class="infoPanelRow">
-      <div class="infoPanelLabel">Posta astronòmica</div>
-      <div class="infoPanelValue">
-        ${fmtLocalTimeAstroSec(info.sunset)}${info.hSet ? `<br>ALT ${info.hSet.alt.toFixed(1)}° · AZ ${info.hSet.az.toFixed(1)}°` : ""}
-      </div>
-    </div>
-
-    <div class="infoPanelRow">
-      <div class="infoPanelLabel">Posta local</div>
-      <div class="infoPanelValue">${obstacleTxt}</div>
-    </div>
-  </div>
-</div>
-
-<div class="summaryBlock">
-  <div class="summaryBlockTitle">Simulació solar · hora local</div>
-
-  <div class="infoPanel">
-    <div class="infoPanelRow">
-      <div class="infoPanelLabel">Millor coincidència</div>
-      <div class="infoPanelValue">
-        ${simBest?.date ? `${fmtMallorcaHmsFromDate(simBest.date)}<br>${simBest.date.toISOString().slice(0,10)}` : "No disponible"}
-      </div>
-    </div>
-  </div>
-
-  <div class="infoPanel">
-    <div class="simChoice">
-<div class="simChoiceTop">
-  <div class="simChoiceDate">29/04/2026</div>
-</div>
-      <div class="simChoiceData">
-        ${sim29?.date ? `${fmtMallorcaHmsFromDate(sim29.date)} · Δalt ${sim29.dAlt >= 0 ? "+" : ""}${sim29.dAlt.toFixed(2)}° · Δaz ${sim29.dAz.toFixed(2)}°` : "No disponible"}
-      </div>
-    </div>
-  </div>
-
-  <div class="infoPanel">
-    <div class="simChoice">
-<div class="simChoiceTop">
-  <div class="simChoiceDate">30/04/2026</div>
-</div>
-      <div class="simChoiceData">
-        ${sim30?.date ? `${fmtMallorcaHmsFromDate(sim30.date)} · Δalt ${sim30.dAlt >= 0 ? "+" : ""}${sim30.dAlt.toFixed(2)}° · Δaz ${sim30.dAz.toFixed(2)}°` : "No disponible"}
-      </div>
-    </div>
-  </div>
-
-  <div class="summaryNote">
-    La simulació cerca, per al 29 i 30 d’abril, l’instant en què el Sol s’assembla més a la posició que tindrà al màxim de l’eclipsi.
-  </div>
-</div>
       `;
     }
 
