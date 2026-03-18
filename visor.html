@@ -507,7 +507,30 @@ let DEVICE_ORIENTATION_ACTIVE = false;
 let SIM_MODE = 0; // 0 = off, 1 = 29 abril, 2 = 30 abril
 let SIM_POINT_29 = null;
 let SIM_POINT_30 = null;
+const compassArrowImg = new Image();
+compassArrowImg.src = "assets/Info/fletxa.png";
 
+compassArrowImg.onload = () => {
+  if(
+    window.__SUNPTS__ &&
+    window.__MOONPTS__ &&
+    window.__SUNCENTER__ &&
+    window.__SUNMARKS__ &&
+    window.__MOONMARKS__
+  ){
+    render(
+      window.__SUNPTS__,
+      window.__MOONPTS__,
+      window.__SUNCENTER__,
+      window.__SUNMARKS__,
+      window.__MOONMARKS__
+    );
+  }
+};
+
+compassArrowImg.onerror = () => {
+  console.warn("No s'ha pogut carregar assets/Info/fletxa.png");
+};
 
 function resizeCanvas(){
   const dpr = Math.max(1, window.devicePixelRatio || 1);
