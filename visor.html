@@ -1225,25 +1225,29 @@ const y1 = baseY - Math.cos(angle) * outerR;
     const clamped = Math.max(-60, Math.min(60, rel));
     const angle = (clamped / 60) * 0.95;
 
-    const x1 = centerX + Math.sin(angle) * radius;
-    const y1 = baseY - Math.cos(angle) * radius;
+    // la col·locam una mica cap endins perquè travessi les línies grogues
+    const arrowR = radius * 0.93;
+    const x = centerX + Math.sin(angle) * arrowR;
+    const y = baseY - Math.cos(angle) * arrowR;
 
-    const arrowW = 26;
-    const arrowH = 34;
+    // més grossa
+    const arrowW = 64;
+    const arrowH = 88;
 
     ctx.save();
-    ctx.translate(x1, y1);
+    ctx.translate(x, y);
 
-    // ajusta aquest valor si la fletxa surt girada
+    // prova aquest gir; si surt mal orientada te diré el següent ajust
     ctx.rotate(angle);
 
     ctx.shadowColor = "rgba(0,255,120,0.55)";
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = 14;
 
+    // centrada damunt el punt perquè passi per damunt les línies
     ctx.drawImage(
       compassArrowImg,
       -arrowW / 2,
-      -arrowH,
+      -arrowH / 2,
       arrowW,
       arrowH
     );
