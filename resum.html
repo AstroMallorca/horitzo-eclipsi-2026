@@ -2004,12 +2004,6 @@ if(Number.isFinite(lat) && Number.isFinite(lon)){
 
   setHorizonButtonLoading();
   precomputeVisorProfile(lat, lon, safeAlt, safeRangeKm, dateStr, centerUtc);
-    setTimeout(() => {
-    if(!HORIZON_READY){
-      console.warn("Timeout de seguretat: desbloqueig del botó del visor");
-      setHorizonButtonReady();
-    }
-  }, 5000);
 } else {
   eclipseCard.style.display = "none";
 }
