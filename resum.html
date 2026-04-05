@@ -1297,10 +1297,15 @@ function findBestSimulationForDate(obs, targetHor, year, monthIndex, day){
 
       const apr29 = findBestSimulationForDate(obs, targetHor, 2026, 3, 29);
       const apr30 = findBestSimulationForDate(obs, targetHor, 2026, 3, 30);
+  let best = null;
 
-      let best = null;
-      if (apr29 && apr30) best = (apr29.score <= apr30.score) ? apr29 : apr30;
-      else best = apr29 || apr30 || null;
+  if (apr29 && apr30){
+    const score29 = apr29.absAlt + apr29.absAz;
+    const score30 = apr30.absAlt + apr30.absAz;
+    best = (score29 <= score30) ? apr29 : apr30;
+  }else{
+    best = apr29 || apr30 || null;
+  }
 
       return { apr29, apr30, best };
     }
