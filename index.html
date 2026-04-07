@@ -1455,14 +1455,13 @@ function updateMapInfo(){
   mapInfo.textContent =
     `lat ${picked.lat?.toFixed(6) ?? "—"}, lon ${picked.lon?.toFixed(6) ?? "—"}, alt ${Math.round(picked.alt ?? 0)} m`;
 }
-async function fetchElevation(lat, lon){
+async function fetchElevationOpenMeteo(lat, lon){
   try{
     const url = `https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`;
     const r = await fetch(url, { cache: "no-store" });
     if(!r.ok) return null;
-    const j = await r.json();
 
-    // Open-Meteo pot retornar "elevation" com array (1 punt) o número (segons format)
+    const j = await r.json();
     const h = Array.isArray(j?.elevation) ? j.elevation[0] : j?.elevation;
 
     return Number.isFinite(h) ? h : null;
@@ -1471,6 +1470,47 @@ async function fetchElevation(lat, lon){
   }
 }
 
+async function fetchElevationOpenTopoData(lat, lon){
+  try{
+    const url = `https://api.opentopodata.org/v1/eudem25m?locations=${lat},${lon}`;
+    const r = await fetch(url, { cache: "no-store" });
+    if(!r.ok) return null;
+
+    const j = await r.json();
+    const h = j?.results?.[0]?.elevation;
+
+    return Number.isFinite(h) ? h : null;
+  }catch(e){
+    return null;
+  }
+}
+
+async function fetchElevation(lat, lon){
+  const h1 = await fetchElevationOpenMeteo(lat, lon);
+  const h2 = await fetchElevationOpenTopoData(lat, lon);
+
+  // Cas ideal: primer servei correcte
+  if(Number.isFinite(h1) && h1 !== 0){
+    return h1;
+  }
+
+  // Si el primer falla o dona 0, però el segon és bo
+  if(Number.isFinite(h2) && h2 !== 0){
+    return h2;
+  }
+
+  // Si tots dos donen 0 → és probablement mar → acceptam
+  if(h1 === 0 && h2 === 0){
+    return 0;
+  }
+
+  // Si només un té valor (encara que sigui 0)
+  if(Number.isFinite(h1)) return h1;
+  if(Number.isFinite(h2)) return h2;
+
+  // Tot falla
+  return null;
+}
 
 async function setPicked(lat, lon){
   picked.lat = lat;
