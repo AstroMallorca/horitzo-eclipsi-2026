@@ -1469,19 +1469,15 @@ async function fetchElevationOpenMeteo(lat, lon){
     return null;
   }
 }
-async function fetchElevationOpenTopoData(lat, lon){
-  try{
-    const url = `https://api.opentopodata.org/v1/eudem25m?locations=${lat},${lon}`;
-    const r = await fetch(url, { cache: "no-store" });
-    if(!r.ok) return null;
 
-    const j = await r.json();
-    const h = j?.results?.[0]?.elevation;
+async function fetchElevation(lat, lon){
+  const h = await fetchElevationOpenMeteo(lat, lon);
 
-    return Number.isFinite(h) ? h : null;
-  }catch(e){
-    return null;
+  if(Number.isFinite(h)){
+    return h;
   }
+
+  return null;
 }
 
 async function fetchElevation(lat, lon){
