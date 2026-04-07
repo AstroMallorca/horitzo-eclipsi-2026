@@ -1455,19 +1455,14 @@ function updateMapInfo(){
   mapInfo.textContent =
     `lat ${picked.lat?.toFixed(6) ?? "—"}, lon ${picked.lon?.toFixed(6) ?? "—"}, alt ${Math.round(picked.alt ?? 0)} m`;
 }
-async function fetchElevationOpenMeteo(lat, lon){
-  try{
-    const url = `https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`;
-    const r = await fetch(url, { cache: "no-store" });
-    if(!r.ok) return null;
+async function fetchElevation(lat, lon){
+  const h = await fetchElevationOpenMeteo(lat, lon);
 
-    const j = await r.json();
-    const h = Array.isArray(j?.elevation) ? j.elevation[0] : j?.elevation;
-
-    return Number.isFinite(h) ? h : null;
-  }catch(e){
-    return null;
+  if(Number.isFinite(h)){
+    return h;
   }
+
+  return null;
 }
 
 async function fetchElevationOpenTopoData(lat, lon){
