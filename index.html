@@ -1480,33 +1480,6 @@ async function fetchElevation(lat, lon){
   return null;
 }
 
-async function fetchElevation(lat, lon){
-  const h1 = await fetchElevationOpenMeteo(lat, lon);
-  const h2 = await fetchElevationOpenTopoData(lat, lon);
-
-  // Cas ideal: primer servei correcte
-  if(Number.isFinite(h1) && h1 !== 0){
-    return h1;
-  }
-
-  // Si el primer falla o dona 0, però el segon és bo
-  if(Number.isFinite(h2) && h2 !== 0){
-    return h2;
-  }
-
-  // Si tots dos donen 0 → és probablement mar → acceptam
-  if(h1 === 0 && h2 === 0){
-    return 0;
-  }
-
-  // Si només un té valor (encara que sigui 0)
-  if(Number.isFinite(h1)) return h1;
-  if(Number.isFinite(h2)) return h2;
-
-  // Tot falla
-  return null;
-}
-
 async function setPicked(lat, lon){
   picked.lat = lat;
   picked.lon = lon;
